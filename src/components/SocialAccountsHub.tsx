@@ -803,17 +803,17 @@ export function SocialAccountsHub({ brand, isOpen, onClose, onUpdateBrand }: Soc
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div>
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                    Step 1 — Official Production &amp; Local OAuth Callback URIs (brandcommand.salongain.com)
+                    Step 1 — Official Production &amp; Local OAuth Callback URIs (getbrandcommand.com)
                   </span>
                   <p className="text-neutral-700 dark:text-neutral-300 mt-0.5">
                     Add both of these Redirect URIs to your developer apps so OAuth works on{' '}
-                    <strong>brandcommand.salongain.com</strong> and locally:
+                    <strong>getbrandcommand.com</strong> and locally:
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.clipboard.writeText('https://brandcommand.salongain.com/api/auth/social/callback');
+                    navigator.clipboard.writeText('https://getbrandcommand.com/api/auth/social/callback');
                     setCopiedCallback(true);
                     setTimeout(() => setCopiedCallback(false), 2000);
                   }}
@@ -829,7 +829,7 @@ export function SocialAccountsHub({ brand, isOpen, onClose, onUpdateBrand }: Soc
                     Production Callback URI:
                   </span>
                   <code className="block w-full p-2 rounded-xl bg-neutral-950 text-emerald-400 font-mono text-xs select-all">
-                    https://brandcommand.salongain.com/api/auth/social/callback
+                    https://getbrandcommand.com/api/auth/social/callback
                   </code>
                 </div>
                 <div>
@@ -843,8 +843,8 @@ export function SocialAccountsHub({ brand, isOpen, onClose, onUpdateBrand }: Soc
               </div>
               <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
                 Built-in OAuth compliance pages ready at{' '}
-                <code>https://brandcommand.salongain.com/privacy</code> &amp;{' '}
-                <code>https://brandcommand.salongain.com/terms</code>.
+                <code>https://getbrandcommand.com/privacy</code> &amp;{' '}
+                <code>https://getbrandcommand.com/terms</code>.
               </p>
             </div>
 

@@ -2,8 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Terms of Service — BrandCommand (brandcommand.salongain.com)',
-  description: 'Terms of Service for BrandCommand (brandcommand.salongain.com).'
+  title: 'Terms of Service — BrandCommand (getbrandcommand.com)',
+  description: 'Terms of Service for BrandCommand (getbrandcommand.com).'
 };
 
 export default function TermsOfServicePage() {
@@ -18,13 +18,13 @@ export default function TermsOfServicePage() {
         </Link>
         <h1 className="text-3xl font-extrabold tracking-tight">Terms of Service</h1>
         <p className="text-xs text-neutral-400">
-          Effective Date: November 5, 2026 • Domain: <strong>brandcommand.salongain.com</strong>
+          Effective Date: November 5, 2026 • Domain: <strong>getbrandcommand.com</strong>
         </p>
 
         <section className="space-y-2 text-sm text-neutral-300 leading-relaxed">
           <h2 className="text-lg font-bold text-white">1. Acceptance of Terms</h2>
           <p>
-            By accessing or using BrandCommand at <strong>https://brandcommand.salongain.com</strong>, you
+            By accessing or using BrandCommand at <strong>https://getbrandcommand.com</strong>, you
             agree to these Terms of Service and all applicable rules of the connected social networks
             (Instagram/Meta, TikTok, X, YouTube/Google, and Pinterest).
           </p>

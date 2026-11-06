@@ -2,8 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Privacy Policy — BrandCommand (brandcommand.salongain.com)',
-  description: 'Privacy Policy and Social OAuth Data Deletion Policy for BrandCommand (brandcommand.salongain.com).'
+  title: 'Privacy Policy — BrandCommand (getbrandcommand.com)',
+  description: 'Privacy Policy and Social OAuth Data Deletion Policy for BrandCommand (getbrandcommand.com).'
 };
 
 export default function PrivacyPolicyPage() {
@@ -18,14 +18,14 @@ export default function PrivacyPolicyPage() {
         </Link>
         <h1 className="text-3xl font-extrabold tracking-tight">Privacy Policy</h1>
         <p className="text-xs text-neutral-400">
-          Effective Date: November 5, 2026 • Domain: <strong>brandcommand.salongain.com</strong>
+          Effective Date: November 5, 2026 • Domain: <strong>getbrandcommand.com</strong>
         </p>
 
         <section className="space-y-2 text-sm text-neutral-300 leading-relaxed">
           <h2 className="text-lg font-bold text-white">1. Overview</h2>
           <p>
             BrandCommand (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;), accessible at{' '}
-            <strong>https://brandcommand.salongain.com</strong>, provides an AI-powered social media content
+            <strong>https://getbrandcommand.com</strong>, provides an AI-powered social media content
             creation, scheduling, and direct-publishing platform.
           </p>
         </section>
@@ -62,7 +62,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <ol className="list-decimal list-inside space-y-1">
             <li>
-              Open BrandCommand at <strong>https://brandcommand.salongain.com</strong> and click{' '}
+              Open BrandCommand at <strong>https://getbrandcommand.com</strong> and click{' '}
               <strong>🔌 Socials</strong> in the top bar.
             </li>
             <li>
