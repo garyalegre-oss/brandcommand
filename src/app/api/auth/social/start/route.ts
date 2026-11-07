@@ -73,6 +73,18 @@ const PROVIDER_DISPLAY: Record<
   }
 };
 
+function resolvePublicOrigin(req: NextRequest): string {
+  const fwdHost = req.headers.get('x-forwarded-host') || req.headers.get('host') || '';
+  const fwdProto = req.headers.get('x-forwarded-proto') || 'https';
+  if (fwdHost && !fwdHost.startsWith('localhost') && !fwdHost.startsWith('127.0.0.1')) {
+    return `${fwdProto.split(',')[0].trim()}://${fwdHost.split(',')[0].trim()}`;
+  }
+  if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  }
+  return req.nextUrl.origin;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const channel = searchParams.get('channel') || 'twitter';
@@ -80,7 +92,7 @@ export async function GET(req: NextRequest) {
   const brandName = searchParams.get('brandName') || 'Brand';
   const defaultHandle = searchParams.get('handle') || `@${brandSlug.replace(/-/g, '_')}`;
 
-  const origin = req.nextUrl.origin;
+  const origin = resolvePublicOrigin(req);
   const redirectUri = `${origin}/api/auth/social/callback`;
   const statePayload = Buffer.from(
     JSON.stringify({ channel, brandSlug, brandName, defaultHandle })
