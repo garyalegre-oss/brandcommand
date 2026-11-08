@@ -289,20 +289,39 @@ export function SocialAccountsHub({ brand, isOpen, onClose, onUpdateBrand }: Soc
 
   if (!isOpen) return null;
 
+  // Normalize any long brand title into a clean @handle
+  const formatCleanHandle = (raw: string | undefined, prefix: string) => {
+    const baseSlug = (brand.slug || brand.name || 'brand')
+      .split(/\s+[-–—|]\s+/)[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '');
+    if (!raw) return `${prefix}${baseSlug}`;
+    if (raw.includes(' - ') || raw.includes(' ') || raw.length > 28) {
+      const cleaned = raw
+        .split(/\s+[-–—|]\s+/)[0]
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '');
+      return `${prefix}${cleaned || baseSlug}`;
+    }
+    return raw;
+  };
+
   // Opens the 1-Click OAuth Popup Window for users
   const handleStartOAuthPopup = (meta: ChannelMeta) => {
     const existing = connections[meta.channel];
-    const detectedHandle =
-      brand.detectedSocials?.[meta.channel] ||
-      existing?.accountHandle ||
-      `${meta.defaultHandlePrefix}${brand.slug.replace(/-/g, '_')}`;
+    const detectedHandle = formatCleanHandle(
+      brand.detectedSocials?.[meta.channel] || existing?.accountHandle,
+      meta.defaultHandlePrefix
+    );
 
     const params = new URLSearchParams({
       channel: meta.channel,
       brandSlug: brand.slug,
       brandName: brand.name,
       handle: detectedHandle,
-      callerOrigin: window.location.origin
+      callerOrigin: window.location.origin,
+      _t: String(Date.now())
     });
 
     const width = 480;
@@ -312,7 +331,7 @@ export function SocialAccountsHub({ brand, isOpen, onClose, onUpdateBrand }: Soc
 
     popupRef.current = window.open(
       `/api/auth/social/start?${params.toString()}`,
-      `Connect_${meta.channel}`,
+      `Connect_${meta.channel}_${Date.now()}`,
       `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
     );
   };
@@ -322,10 +341,10 @@ export function SocialAccountsHub({ brand, isOpen, onClose, onUpdateBrand }: Soc
     const next: Partial<Record<SocialChannel, SocialAccountConnection>> = { ...connections };
     for (const meta of CHANNELS_META) {
       const existing = next[meta.channel];
-      const detectedHandle =
-        brand.detectedSocials?.[meta.channel] ||
-        existing?.accountHandle ||
-        `${meta.defaultHandlePrefix}${brand.slug.replace(/-/g, '_')}`;
+      const detectedHandle = formatCleanHandle(
+        brand.detectedSocials?.[meta.channel] || existing?.accountHandle,
+        meta.defaultHandlePrefix
+      );
       next[meta.channel] = {
         channel: meta.channel,
         accountHandle: detectedHandle,
@@ -689,10 +708,10 @@ export function SocialAccountsHub({ brand, isOpen, onClose, onUpdateBrand }: Soc
                 const conn = connections[meta.channel];
                 const isConnected = !!conn?.isConnected;
                 const isLiveOAuthConfigured = !!providerConfig[meta.channel]?.configured;
-                const handle =
-                  conn?.accountHandle ||
-                  brand.detectedSocials?.[meta.channel] ||
-                  `${meta.defaultHandlePrefix}${brand.slug.replace(/-/g, '_')}`;
+                const handle = formatCleanHandle(
+                  conn?.accountHandle || brand.detectedSocials?.[meta.channel],
+                  meta.defaultHandlePrefix
+                );
 
                 return (
                   <div

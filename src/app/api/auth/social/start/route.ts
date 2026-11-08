@@ -150,10 +150,17 @@ export async function GET(req: NextRequest) {
       const authUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
       authUrl.searchParams.set('client_id', clientId);
       authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('scope', 'public_profile');
+      authUrl.searchParams.set(
+        'scope',
+        channel === 'instagram'
+          ? 'instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement'
+          : 'pages_manage_posts,pages_read_engagement,pages_show_list'
+      );
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('state', statePayload);
-      return NextResponse.redirect(authUrl.toString());
+      return NextResponse.redirect(authUrl.toString(), {
+        headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+      });
     }
 
     if (channel === 'tiktok') {
@@ -354,6 +361,9 @@ export async function GET(req: NextRequest) {
 </html>`;
 
   return new NextResponse(html, {
-    headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate'
+    }
   });
 }
