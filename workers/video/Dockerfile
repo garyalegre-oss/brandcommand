@@ -12,5 +12,6 @@ ENV PYTHONUNBUFFERED=1 VIDEO_ROOT=/tmp/brandcommand-video-test
 ENV VIDEO_FONT_REGULAR=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
 ENV VIDEO_FONT_BOLD=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
 ENV OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2
-# One bounded execution. Never runs a scheduler, uploads to YouTube or publishes.
-CMD ["timeout","900s","python","workers/video/run_once.py"]
+# One bounded daily execution; disabled unless both owner opt-in and cloud key exist.
+# YouTube credentials remain on Evidraw. No local scheduler is started here.
+CMD ["timeout","900s","python","workers/video/cloud_daily.py"]

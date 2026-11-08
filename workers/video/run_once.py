@@ -63,12 +63,12 @@ def prepare_sources(g,out):
         assert r==dict(date=day,numbers=nums,bonus=bonus)
     lq=(sources/g['sources'][1]['file']).read_text(encoding='utf-8')
     section=lq.split('<div id="dateAffichee">'+g['date']+'</div>',1)[1]
-    assert list(map(int,re.findall(r'<span class="num">(\d+)</span>',section)[:6]))==g['numbers']
+    assert list(map(int,re.findall(r'<span class="num">(\d+)</span>',section)[:g['pick']]))==g['numbers']
     assert int(re.search(r'<span class="num complementaire">(\d+)</span>',section)[1])==g['bonus']
-    assert sha(sources/g['sources'][2]['file'])==RULES_SHA
+    assert sha(sources/g['sources'][2]['file'])==g.get('rules_sha256',RULES_SHA)
     return preserved
 
-def execute(token,job,g,key,input_hash):
+def execute(token,job,g,key,input_hash,input_path=FIXTURE):
     from render_verified_draw import FFMPEG, self_tests
     from PIL import Image
     import soundfile as sf
@@ -81,12 +81,18 @@ def execute(token,job,g,key,input_hash):
         if not dest.exists(): dest.symlink_to(Path('/opt/models')/name)
     preserved=prepare_sources(g,out)
     log('Official results and applicable rules verified; rendering in cloud.')
-    subprocess.run([sys.executable,str(HERE/'render_verified_draw.py'),str(FIXTURE)],check=True,timeout=600)
+    subprocess.run([sys.executable,str(HERE/'render_verified_draw.py'),str(input_path)],check=True,timeout=600)
     report=read(out/'validation.json')
     video=next(out.glob('Evidraw-*.mp4'))
     assert sha(video)==report['video_sha256']
     assert report['dimensions']==[1080,1920] and 45<=report['duration_seconds']<=60
     assert report['voice']=='am_fenrir' and report['voice_speed']==1
+    probe=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(video)],timeout=20))
+    v=next(x for x in probe['streams'] if x['codec_type']=='video')
+    a=next(x for x in probe['streams'] if x['codec_type']=='audio')
+    assert (v['width'],v['height'])==(1080,1920) and v['r_frame_rate']=='24/1'
+    assert int(a['sample_rate'])==48000 and 45<=float(probe['format']['duration'])<=60.2
+    assert abs(float(probe['format']['duration'])-report['duration_seconds'])<.2
     decode=subprocess.run([str(FFMPEG),'-v','error','-i',str(video),'-f','null','-'],capture_output=True,timeout=90)
     assert decode.returncode==0 and not decode.stderr.strip()
     scenes=read(out/'timeline.json'); sheet=Image.new('RGB',(810,960))
@@ -113,7 +119,7 @@ def execute(token,job,g,key,input_hash):
         result=send(token,job=job['id'],asset=kind,content=path.read_bytes(),lease=job['lease'])
         assert result['sha256']==hashes[kind]
     send(token,{'action':'complete','id':job['id'],'lease':job['lease'],'detail':{'fullDecode':True,'inputHash':input_hash,'voice':'am_fenrir','speed':1,'width':1080,'height':1920,'duration':report['duration_seconds'],'hashes':hashes}})
-    log('CLOUD DRAFT READY FOR VISUAL REVIEW. No YouTube upload or publication performed.')
+    log('Cloud render and upload validation complete.')
 
 def main():
     # No recurring consumer. Absent credential means harmless preflight, not a render.

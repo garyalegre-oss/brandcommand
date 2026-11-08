@@ -39,6 +39,7 @@ def wrapped(d, s, y, size=40, color=WHITE, width=870, center=False):
     for line in lines:
         text(d, (540 if center else 100, y), line, size, color, anchor='mt' if center else None)
         y += size+16
+    assert y < 1670, 'Text exceeded safe content area'
     return y
 
 def ball(d, x, y, num, r=52, color=TEAL):
@@ -249,6 +250,8 @@ def main():
     description=description.replace('Official results checked October 7, 2026:',f"Official results checked {date_label(g['checked_at'][:10])}:")
     if g['slug']=='lotto-649':
         description=description.replace('Lotto Max main draw','Lotto 6/49 Classic draw').replace('MAXMILLIONS and MAXPLUS are separate.','Gold Ball is a separate draw and is not analyzed here.').replace('#LottoMax','#Lotto649')
+    # Automatic jobs use server-verified canonical copy, not free-form worker text.
+    title=g.get('youtube_title',title); description=g.get('youtube_description',description)
     (out/'youtube-title-and-description.txt').write_text('TITLE\n'+title+'\n\nDESCRIPTION\n'+description,encoding='utf-8')
     opts=ort.SessionOptions(); opts.intra_op_num_threads=4; opts.inter_op_num_threads=1
     session=ort.InferenceSession(str(ROOT/'work/voice-models/kokoro-v1.0.onnx'),sess_options=opts,providers=['CPUExecutionProvider'])
