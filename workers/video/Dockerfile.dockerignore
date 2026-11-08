@@ -1,0 +1,8 @@
+**
+!workers/
+!workers/video/
+!workers/video/**
+workers/video/__pycache__
+workers/video/*.pyc
+**/.env*
+**/*secret*
