@@ -376,6 +376,106 @@ const UGC_CREATOR_PRESETS: UgcCreatorPreset[] = [
     type: 'video',
     mediaUrl: '/videos/actors/s20.mp4',
     thumbnailUrl: '/videos/actors/ugc_react_pensive_woman.jpg'
+  },
+  {
+    id: 'ugc_alex_vlog',
+    name: 'Alex • Street Creator POV',
+    emotion: 'agreeing',
+    emotionBadge: '🔥 Hype / Street POV',
+    tag: 'Handheld Creator Vlog • Energetic Outdoor Reaction',
+    type: 'video',
+    mediaUrl: '/videos/actors/ugc_alex_vlog.mp4',
+    thumbnailUrl: '/videos/actors/ugc_alex_vlog.jpg'
+  },
+  {
+    id: 'ugc_chloe_selfie',
+    name: 'Chloe • Selfie Camera Check',
+    emotion: 'agreeing',
+    emotionBadge: '✨ Confident Selfie',
+    tag: 'Front Camera 9:16 • Authentic Creator Vibe Check',
+    type: 'video',
+    mediaUrl: '/videos/actors/ugc_chloe_selfie.mp4',
+    thumbnailUrl: '/videos/actors/ugc_chloe_selfie.jpg'
+  },
+  {
+    id: 'ugc_elena_phone',
+    name: 'Nora • Checking Phone at 2AM',
+    emotion: 'shocked',
+    emotionBadge: '📱 Checking Phone',
+    tag: 'Relatable Phone Scroll & Double-Take Reaction',
+    type: 'video',
+    mediaUrl: '/videos/actors/ugc_elena_phone.mp4',
+    thumbnailUrl: '/videos/actors/ugc_elena_phone.jpg'
+  },
+  {
+    id: 'ugc_street_vlog',
+    name: 'Jordan • Walking City POV',
+    emotion: 'thinking',
+    emotionBadge: '🚶 Walking POV',
+    tag: 'On-the-Go Handheld City Creator Footage',
+    type: 'video',
+    mediaUrl: '/videos/actors/ugc_street_vlog.mp4',
+    thumbnailUrl: '/videos/actors/ugc_street_vlog.jpg'
+  },
+  {
+    id: 'ugc_terrace_call',
+    name: 'Sofia • Terrace Coffee Reaction',
+    emotion: 'skeptical',
+    emotionBadge: '☕ Sipping / Side-Eye',
+    tag: 'Balcony Terrace POV • Relatable Creator Reaction',
+    type: 'video',
+    mediaUrl: '/videos/actors/ugc_terrace_call.mp4',
+    thumbnailUrl: '/videos/actors/ugc_terrace_call.jpg'
+  },
+  {
+    id: 'ugc_d13_studio',
+    name: 'Lucas • Founder Desk POV',
+    emotion: 'agreeing',
+    emotionBadge: '💻 Founder Desk',
+    tag: 'Studio Creator Camera • Direct Eye Contact',
+    type: 'video',
+    mediaUrl: '/videos/actors/d13.mp4',
+    thumbnailUrl: '/videos/actors/d12.jpg'
+  },
+  {
+    id: 'ugc_d6_creator',
+    name: 'Ava • Expressive Take POV',
+    emotion: 'shocked',
+    emotionBadge: '👀 Wait What?!',
+    tag: 'Expressive Creator Reaction • High Retention Hook',
+    type: 'video',
+    mediaUrl: '/videos/actors/d6.mp4',
+    thumbnailUrl: '/videos/actors/s1.jpg'
+  },
+  {
+    id: 'ugc_s13_creator',
+    name: 'Noah • Skeptical Brow Raise',
+    emotion: 'skeptical',
+    emotionBadge: '🧐Wait A Second',
+    tag: 'Skeptical Creator Look • Myth-Busting Reaction',
+    type: 'video',
+    mediaUrl: '/videos/actors/s13.mp4',
+    thumbnailUrl: '/videos/actors/s4.jpg'
+  },
+  {
+    id: 'ugc_s18_creator',
+    name: 'Sienna • Unimpressed Stare',
+    emotion: 'disagreeing',
+    emotionBadge: '🙄 Side-Eye POV',
+    tag: 'Relatable Side-Eye / Unimpressed Creator Clip',
+    type: 'video',
+    mediaUrl: '/videos/actors/s18.mp4',
+    thumbnailUrl: '/videos/actors/d8.jpg'
+  },
+  {
+    id: 'ugc_d9_creator',
+    name: 'Ethan • Work From Home POV',
+    emotion: 'frustrated',
+    emotionBadge: '😮‍💨 Over It POV',
+    tag: 'Late Night Desk Reaction • Relatable Pain Hook',
+    type: 'video',
+    mediaUrl: '/videos/actors/d9.mp4',
+    thumbnailUrl: '/videos/actors/d9.jpg'
   }
 ];
 
@@ -719,6 +819,61 @@ export function VideoPlayerPreview({
   const [memeCardTheme, setMemeCardTheme] = useState<'light' | 'dark'>('light');
   const [showMemeEditorDrawer, setShowMemeEditorDrawer] = useState<boolean>(false);
 
+  // Live Character & Meme Reaction Clip Search Drawer State
+  const [showClipSearchDrawer, setShowClipSearchDrawer] = useState<boolean>(false);
+  const [clipSearchQuery, setClipSearchQuery] = useState<string>('');
+  const [clipSearchResults, setClipSearchResults] = useState<
+    Array<{
+      id: string;
+      title: string;
+      type: 'video' | 'image';
+      mediaUrl: string;
+      thumbnailUrl: string;
+      source?: string;
+    }>
+  >([]);
+  const [isSearchingClips, setIsSearchingClips] = useState<boolean>(false);
+  const [customClipBadgeLabel, setCustomClipBadgeLabel] = useState<string>('🎬 Custom Reaction Clip');
+
+  const handleSearchReactionClips = async (rawQuery?: string) => {
+    const q = (rawQuery !== undefined ? rawQuery : clipSearchQuery).trim();
+    if (!q) return;
+    if (rawQuery !== undefined) {
+      setClipSearchQuery(rawQuery);
+    }
+    setIsSearchingClips(true);
+    try {
+      const res = await fetch('/api/search-broll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: q,
+          category: brand.category || 'all',
+          mediaType: 'video'
+        })
+      });
+      const data = await res.json();
+      const clips = Array.isArray(data.clips) ? data.clips : [];
+      setClipSearchResults(
+        clips
+          .filter((c: any) => c.mediaUrl && c.mediaUrl !== 'animated_chart')
+          .slice(0, 24)
+          .map((c: any) => ({
+            id: c.id,
+            title: c.title || q,
+            type: c.type === 'video' ? 'video' : 'image',
+            mediaUrl: c.mediaUrl,
+            thumbnailUrl: c.thumbnailUrl || c.mediaUrl,
+            source: c.source
+          }))
+      );
+    } catch {
+      setClipSearchResults([]);
+    } finally {
+      setIsSearchingClips(false);
+    }
+  };
+
   const matchedUgcEmotion = useMemo(
     () => matchUgcReactionToScript(ugcStoryText, script?.hook),
     [ugcStoryText, script?.hook]
@@ -779,17 +934,17 @@ export function VideoPlayerPreview({
     if (customUgcMediaUrl) {
       return {
         id: 'custom_ugc',
-        name: 'Custom AI / Uploaded Creator',
+        name: customClipBadgeLabel || 'Custom AI / Uploaded Creator',
         emotion: matchedUgcEmotion.emotion,
-        emotionBadge: matchedUgcEmotion.emotionBadge,
-        tag: 'Custom Front-Camera POV • Silent Reaction',
+        emotionBadge: customClipBadgeLabel || matchedUgcEmotion.emotionBadge,
+        tag: 'Custom Reaction / Meme Clip',
         type: customUgcMediaType,
         mediaUrl: customUgcMediaUrl,
         thumbnailUrl: customUgcMediaUrl
       };
     }
     return UGC_CREATOR_PRESETS.find((p) => p.id === selectedUgcCreatorId) || UGC_CREATOR_PRESETS[0];
-  }, [selectedUgcCreatorId, customUgcMediaUrl, customUgcMediaType, matchedUgcEmotion]);
+  }, [selectedUgcCreatorId, customUgcMediaUrl, customUgcMediaType, matchedUgcEmotion, customClipBadgeLabel]);
 
   const handleCycleUgcStoryText = () => {
     const variants = getUgcStoryVariants(brand, script);
@@ -3067,6 +3222,25 @@ Return valid JSON matching the VideoScript schema.`;
                   </button>
                   <button
                     type="button"
+                    onClick={() => {
+                      const nextOpen = !showClipSearchDrawer;
+                      setShowClipSearchDrawer(nextOpen);
+                      if (nextOpen && clipSearchResults.length === 0) {
+                        handleSearchReactionClips('mind blown reaction');
+                      }
+                    }}
+                    className={`px-2 py-1 rounded-lg border font-bold flex items-center gap-1 transition-colors ${
+                      showClipSearchDrawer
+                        ? 'border-blue-500 bg-blue-600 text-white'
+                        : 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-100 text-neutral-700 dark:text-neutral-200'
+                    }`}
+                    title="Search millions of live reaction clips & browse 20 studio characters"
+                  >
+                    <Search className="w-2.5 h-2.5" />
+                    <span>Search Clips</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setShowUgcEditorDrawer((prev) => !prev)}
                     className="px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-100 text-neutral-700 dark:text-neutral-200 font-bold transition-colors"
                   >
@@ -3231,6 +3405,25 @@ Return valid JSON matching the VideoScript schema.`;
                   </button>
                   <button
                     type="button"
+                    onClick={() => {
+                      const nextOpen = !showClipSearchDrawer;
+                      setShowClipSearchDrawer(nextOpen);
+                      if (nextOpen && clipSearchResults.length === 0) {
+                        handleSearchReactionClips('mind blown reaction');
+                      }
+                    }}
+                    className={`px-2 py-1 rounded-lg border font-bold flex items-center gap-1 transition-colors ${
+                      showClipSearchDrawer
+                        ? 'border-blue-500 bg-blue-600 text-white'
+                        : 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-100 text-neutral-700 dark:text-neutral-200'
+                    }`}
+                    title="Search millions of live meme & reaction MP4 clips or browse 20 studio characters"
+                  >
+                    <Search className="w-2.5 h-2.5" />
+                    <span>🔍 More Clips</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setShowMemeEditorDrawer((prev) => !prev)}
                     className="px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-100 text-neutral-700 dark:text-neutral-200 font-bold transition-colors"
                   >
@@ -3281,6 +3474,16 @@ Return valid JSON matching the VideoScript schema.`;
                     className="hidden"
                   />
                 </label>
+                <button
+                  type="button"
+                  onClick={() => handleGenerateAiUgcCreator('veo')}
+                  disabled={isGeneratingUgcCreator}
+                  className="shrink-0 px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 font-bold flex items-center gap-1"
+                  title="Generate an AI front-camera silent reaction video matching your script emotion"
+                >
+                  <Wand2 className="w-2.5 h-2.5 text-blue-500" />
+                  <span>{isGeneratingUgcCreator ? '...' : '+ AI Clip'}</span>
+                </button>
               </div>
 
               {showMemeEditorDrawer && (
@@ -3314,6 +3517,123 @@ Return valid JSON matching the VideoScript schema.`;
             </div>
           )}
 
+          {/* Live Character & Meme Reaction Clip Search Drawer (Shared across UGC & Meme Reel) */}
+          {(layoutMode === 'ugc_creator' || layoutMode === 'meme_reel') && showClipSearchDrawer && (
+            <div className="p-2.5 rounded-2xl bg-white dark:bg-neutral-900 border border-blue-500/40 shadow-md space-y-2 text-[10px] animate-in fade-in duration-150">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-extrabold text-neutral-900 dark:text-white flex items-center gap-1">
+                  <span>🎬 Search Live Meme & Reaction Clips + 20 Studio Characters</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowClipSearchDrawer(false)}
+                  className="text-neutral-400 hover:text-neutral-700 dark:hover:text-white font-bold px-1.5 py-0.5 rounded"
+                >
+                  ✕ Close
+                </button>
+              </div>
+
+              {/* Search Input Bar */}
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={clipSearchQuery}
+                  onChange={(e) => setClipSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearchReactionClips();
+                    }
+                  }}
+                  placeholder="Search any reaction or footage (e.g. cat typing, mind blown, side eye, celebration)..."
+                  className="flex-1 px-2.5 py-1.5 rounded-lg bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 text-[11px] text-neutral-900 dark:text-white font-medium focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSearchReactionClips()}
+                  disabled={isSearchingClips}
+                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-extrabold flex items-center gap-1 shadow-2xs transition-colors"
+                >
+                  <Search className="w-3 h-3" />
+                  <span>{isSearchingClips ? '...' : 'Search'}</span>
+                </button>
+              </div>
+
+              {/* Quick Trending Reaction & Footage Filter Chips */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+                {[
+                  { label: '🤯 Mind Blown', q: 'mind blown reaction' },
+                  { label: '🤨 Side Eye', q: 'side eye reaction' },
+                  { label: '🐱 Cat Typing', q: 'cat typing computer' },
+                  { label: '🤦 Facepalm', q: 'facepalm frustrated' },
+                  { label: '😂 Laughing', q: 'trying not to laugh' },
+                  { label: '🎉 Celebration', q: 'excited celebration dance' },
+                  { label: '💀 Wait What', q: 'confused wait what reaction' },
+                  { label: '📈 Stocks / Money', q: 'stock market money trading' }
+                ].map((chip) => (
+                  <button
+                    key={chip.q}
+                    type="button"
+                    onClick={() => handleSearchReactionClips(chip.q)}
+                    className={`shrink-0 px-2 py-0.5 rounded-full border font-bold transition-colors ${
+                      clipSearchQuery === chip.q
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:border-blue-400'
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Results Visual Grid */}
+              {isSearchingClips ? (
+                <div className="py-4 text-center text-neutral-500 font-semibold">
+                  Searching live MP4 reaction clips & HD footage...
+                </div>
+              ) : clipSearchResults.length > 0 ? (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+                  {clipSearchResults.map((clip) => {
+                    const isSelected = customUgcMediaUrl === clip.mediaUrl;
+                    return (
+                      <button
+                        key={clip.id}
+                        type="button"
+                        onClick={() => {
+                          setCustomUgcMediaUrl(clip.mediaUrl);
+                          setCustomUgcMediaType(clip.type);
+                          setCustomClipBadgeLabel(`🎬 ${clip.title.slice(0, 22)}`);
+                        }}
+                        className={`group relative rounded-lg overflow-hidden border-2 aspect-square bg-neutral-950 text-left transition-all ${
+                          isSelected
+                            ? 'border-blue-500 ring-2 ring-blue-500/40'
+                            : 'border-neutral-200 dark:border-neutral-800 hover:border-blue-400'
+                        }`}
+                        title={`Click to use "${clip.title}" in the 9:16 player`}
+                      >
+                        <img
+                          src={clip.thumbnailUrl}
+                          alt={clip.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-1">
+                          <p className="text-[8.5px] font-bold text-white truncate">{clip.title}</p>
+                        </div>
+                        <span className="absolute top-1 right-1 px-1 py-0.2 rounded bg-black/75 text-white text-[7.5px] font-extrabold uppercase">
+                          {clip.type === 'video' ? 'MP4' : 'IMG'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-2 text-center text-neutral-400">
+                  Type any keyword above or tap a reaction chip to load live MP4 clips.
+                </div>
+              )}
+            </div>
+          )}
+
           {sceneVisualNotice && (
             <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -3341,6 +3661,7 @@ Return valid JSON matching the VideoScript schema.`;
                     ref={ugcVideoRef}
                     key={`ugc-video-${activeUgcPreset.mediaUrl}`}
                     src={activeUgcPreset.mediaUrl}
+                    crossOrigin={activeUgcPreset.mediaUrl.startsWith('http') ? 'anonymous' : undefined}
                     playsInline
                     muted
                     loop
@@ -3424,6 +3745,7 @@ Return valid JSON matching the VideoScript schema.`;
                     ref={ugcVideoRef}
                     key={`meme-video-${activeUgcPreset.mediaUrl}`}
                     src={activeUgcPreset.mediaUrl}
+                    crossOrigin={activeUgcPreset.mediaUrl.startsWith('http') ? 'anonymous' : undefined}
                     playsInline
                     muted
                     loop

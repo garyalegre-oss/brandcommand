@@ -7,7 +7,7 @@ export interface BrollClipResult {
   type: 'video' | 'animated_chart' | 'image';
   mediaUrl: string;
   thumbnailUrl: string;
-  source: 'pexels' | 'pixabay' | 'unsplash' | 'local_library' | 'curated_hd';
+  source: 'pexels' | 'pixabay' | 'unsplash' | 'giphy' | 'local_library' | 'curated_hd';
   tags: string[];
   duration?: number;
 }
@@ -334,6 +334,49 @@ export async function POST(req: NextRequest) {
         }
       } catch (err) {
         console.warn('Unsplash API fetch failed:', err);
+      }
+    }
+
+    // 3.5. Live Reaction & Meme Clip MP4 Search (Giphy MP4 CDN - Keyless & CORS-enabled)
+    if (searchTerm) {
+      try {
+        const giphyKey = process.env.GIPHY_API_KEY || 'GlVGYHkr3WSBnllca54iNt0yFbjz7L65';
+        const giphyRes = await fetch(
+          `https://api.giphy.com/v1/gifs/search?api_key=${giphyKey}&q=${encodeURIComponent(searchTerm)}&limit=18&rating=pg-13`
+        );
+        if (giphyRes.ok) {
+          const giphyData = await giphyRes.json();
+          if (Array.isArray(giphyData.data) && giphyData.data.length > 0) {
+            giphyData.data.forEach((item: any) => {
+              const mp4Url =
+                item.images?.original?.mp4 ||
+                item.images?.downsized_small?.mp4 ||
+                item.images?.fixed_height?.mp4;
+              const thumbUrl =
+                item.images?.fixed_height_still?.url ||
+                item.images?.downsized_still?.url ||
+                item.images?.original_still?.url ||
+                mp4Url;
+              if (mp4Url) {
+                const cleanTitle = (item.title || searchTerm)
+                  .replace(/\s*GIF(\s*by\s*.*)?$/i, '')
+                  .trim();
+                aggregatedClips.push({
+                  id: `giphy_${item.id}`,
+                  title: cleanTitle || `${searchTerm.toUpperCase()} Reaction Clip`,
+                  category: (effectiveCategory !== 'all' ? effectiveCategory : 'lifestyle') as any,
+                  type: 'video',
+                  mediaUrl: mp4Url,
+                  thumbnailUrl: thumbUrl,
+                  source: 'giphy',
+                  tags: [searchTerm, 'meme', 'reaction', 'clip']
+                });
+              }
+            });
+          }
+        }
+      } catch (giphyErr) {
+        console.warn('Giphy MP4 search failed:', giphyErr);
       }
     }
 
