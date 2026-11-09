@@ -16,6 +16,7 @@ import { InsideAppTutorialStudio } from '../components/InsideAppTutorialStudio';
 import { BrandContentLibrary } from '../components/BrandContentLibrary';
 import { ModelStudio } from '../components/ModelStudio';
 import { BrandAvatar } from '../components/BrandAvatar';
+import { SystemHealthAgent } from '../components/SystemHealthAgent';
 import {
   Layers,
   Calendar,
@@ -802,6 +803,13 @@ export default function Home() {
                   <span>{activeBrandScheduledCount} Scheduled</span>
                 </button>
               </div>
+
+              <SystemHealthAgent
+                brands={brands}
+                posts={posts}
+                onHealBrands={saveBrands}
+                onHealPosts={savePosts}
+              />
 
               <button
                 onClick={() => setIsSocialHubOpen(true)}
