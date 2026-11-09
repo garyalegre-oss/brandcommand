@@ -192,7 +192,10 @@ export function AdImageStudio({ brand, onSavePost, onUpdateBrand, onOpenSocialHu
   const [statusNotice, setStatusNotice] = useState<string | null>(null);
   const [gallery, setGallery] = useState<GeneratedAdAsset[]>([]);
   const [isExportingPng, setIsExportingPng] = useState<boolean>(false);
+  const [isExportingAllSizes, setIsExportingAllSizes] = useState<boolean>(false);
   const [justQueued, setJustQueued] = useState<boolean>(false);
+  const [activePaidPlatform, setActivePaidPlatform] = useState<'meta' | 'google' | 'tiktok'>('meta');
+  const [copiedPaidPack, setCopiedPaidPack] = useState<boolean>(false);
 
   // Direct Social Publishing State
   const [isPublishingNow, setIsPublishingNow] = useState<boolean>(false);
@@ -552,196 +555,202 @@ export function AdImageStudio({ brand, onSavePost, onUpdateBrand, onOpenSocialHu
     }
   };
 
+  // Render composite ad (image + official logo + overlay typography + badge + CTA) for any given preset dimensions
+  const renderCompositeAdDataUrl = async (targetPreset = activePreset): Promise<string | null> => {
+    const canvas = document.createElement('canvas');
+    const { w, h } = targetPreset.dimensions;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // 1. Draw Background Fill
+    ctx.fillStyle = '#0a0a0c';
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Load & Draw Image (Cover fit)
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise<void>((resolve) => {
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+      img.src = activeImageUrl;
+    });
+
+    if (img.width && img.height) {
+      const imgRatio = img.width / img.height;
+      const canvasRatio = w / h;
+      let drawW = w;
+      let drawH = h;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (imgRatio > canvasRatio) {
+        drawW = h * imgRatio;
+        offsetX = -(drawW - w) / 2;
+      } else {
+        drawH = w / imgRatio;
+        offsetY = -(drawH - h) / 2;
+      }
+      ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+    }
+
+    const pad = Math.round(w * 0.065);
+
+    // 3. Draw Ad Overlays if enabled
+    if (overlayLayout !== 'none') {
+      const grad = ctx.createLinearGradient(0, h * 0.35, 0, h);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(0.55, 'rgba(8,8,12,0.72)');
+      grad.addColorStop(1, 'rgba(5,5,8,0.95)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      let cursorY = h - pad;
+
+      // CTA Button Pill at bottom
+      if (ctaText) {
+        ctx.font = `bold ${Math.round(w * 0.032)}px Inter, system-ui, sans-serif`;
+        const textMetrics = ctx.measureText(ctaText);
+        const btnW = Math.min(w - pad * 2, textMetrics.width + pad * 1.4);
+        const btnH = Math.round(w * 0.082);
+        const btnY = cursorY - btnH;
+
+        ctx.fillStyle = brand.primaryColor || '#10b981';
+        ctx.beginPath();
+        ctx.roundRect(pad, btnY, btnW, btnH, 18);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ctaText, pad + Math.round(pad * 0.65), btnY + btnH / 2);
+
+        cursorY = btnY - Math.round(h * 0.035);
+      }
+
+      // Subheadline
+      if (subheadline) {
+        const subFontSize = Math.round(w * 0.031);
+        ctx.font = `500 ${subFontSize}px Inter, system-ui, sans-serif`;
+        ctx.fillStyle = 'rgba(240,240,245,0.9)';
+        const words = subheadline.split(' ');
+        const lines: string[] = [];
+        let line = '';
+        const maxW = w - pad * 2;
+        for (const word of words) {
+          const test = line ? `${line} ${word}` : word;
+          if (ctx.measureText(test).width > maxW) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = test;
+          }
+        }
+        if (line) lines.push(line);
+
+        for (let i = lines.length - 1; i >= 0; i--) {
+          ctx.fillText(lines[i], pad, cursorY);
+          cursorY -= Math.round(subFontSize * 1.38);
+        }
+        cursorY -= Math.round(h * 0.015);
+      }
+
+      // Headline
+      if (headline) {
+        const headFontSize = Math.round(w * 0.056);
+        ctx.font = `800 ${headFontSize}px Inter, system-ui, sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        const words = headline.split(' ');
+        const lines: string[] = [];
+        let line = '';
+        const maxW = w - pad * 2;
+        for (const word of words) {
+          const test = line ? `${line} ${word}` : word;
+          if (ctx.measureText(test).width > maxW) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = test;
+          }
+        }
+        if (line) lines.push(line);
+
+        for (let i = lines.length - 1; i >= 0; i--) {
+          ctx.fillText(lines[i], pad, cursorY);
+          cursorY -= Math.round(headFontSize * 1.22);
+        }
+        cursorY -= Math.round(h * 0.02);
+      }
+
+      // Badge Pill
+      if (badgeText) {
+        const badgeFontSize = Math.round(w * 0.025);
+        ctx.font = `bold ${badgeFontSize}px Inter, system-ui, sans-serif`;
+        const bW = ctx.measureText(badgeText).width + 36;
+        const bH = Math.round(badgeFontSize * 2.1);
+        const bY = cursorY - bH;
+
+        ctx.fillStyle = 'rgba(255,255,255,0.16)';
+        ctx.beginPath();
+        ctx.roundRect(pad, bY, bW, bH, 999);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(badgeText, pad + 18, bY + bH / 2);
+      }
+    }
+
+    // 4. Draw Official Brand Logo Watermark if enabled
+    if (logoUrl && logoPlacement !== 'hidden') {
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve) => {
+        logoImg.onload = () => resolve();
+        logoImg.onerror = () => resolve();
+        logoImg.src = logoUrl;
+      });
+
+      if (logoImg.width && logoImg.height) {
+        const scaleMap: Record<LogoSize, number> = { sm: 0.065, md: 0.088, lg: 0.115 };
+        const iconPx = Math.round(w * scaleMap[logoSize]);
+
+        if (logoPlacement === 'top_right_pill') {
+          ctx.font = `bold ${Math.round(iconPx * 0.42)}px Inter, system-ui, sans-serif`;
+          const nameW = ctx.measureText(brand.name).width;
+          const pillW = iconPx + nameW + 44;
+          const pillH = iconPx + 20;
+          const pillX = w - pad - pillW;
+          const pillY = pad;
+
+          ctx.fillStyle = 'rgba(10, 14, 24, 0.78)';
+          ctx.beginPath();
+          ctx.roundRect(pillX, pillY, pillW, pillH, 999);
+          ctx.fill();
+
+          ctx.drawImage(logoImg, pillX + 12, pillY + 10, iconPx, iconPx);
+          ctx.fillStyle = '#ffffff';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(brand.name, pillX + 12 + iconPx + 12, pillY + pillH / 2);
+        } else if (logoPlacement === 'top_left_mark') {
+          ctx.drawImage(logoImg, pad, pad, iconPx * 1.15, iconPx * 1.15);
+        } else if (logoPlacement === 'bottom_right_mark') {
+          ctx.drawImage(logoImg, w - pad - iconPx * 1.15, h - pad - iconPx * 1.15, iconPx * 1.15, iconPx * 1.15);
+        }
+      }
+    }
+
+    return canvas.toDataURL('image/png');
+  };
+
   // Export composite ad (image + official logo + overlay typography + badge + CTA) to downloadable PNG
   const handleDownloadCompositePng = async () => {
     if (!activeImageUrl) return;
     setIsExportingPng(true);
 
     try {
-      const canvas = document.createElement('canvas');
-      const { w, h } = activePreset.dimensions;
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      // 1. Draw Background Fill
-      ctx.fillStyle = '#0a0a0c';
-      ctx.fillRect(0, 0, w, h);
-
-      // 2. Load & Draw Image (Cover fit)
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise<void>((resolve) => {
-        img.onload = () => resolve();
-        img.onerror = () => resolve();
-        img.src = activeImageUrl;
-      });
-
-      if (img.width && img.height) {
-        const imgRatio = img.width / img.height;
-        const canvasRatio = w / h;
-        let drawW = w;
-        let drawH = h;
-        let offsetX = 0;
-        let offsetY = 0;
-
-        if (imgRatio > canvasRatio) {
-          drawW = h * imgRatio;
-          offsetX = -(drawW - w) / 2;
-        } else {
-          drawH = w / imgRatio;
-          offsetY = -(drawH - h) / 2;
-        }
-        ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-      }
-
-      const pad = Math.round(w * 0.065);
-
-      // 3. Draw Ad Overlays if enabled
-      if (overlayLayout !== 'none') {
-        const grad = ctx.createLinearGradient(0, h * 0.35, 0, h);
-        grad.addColorStop(0, 'rgba(0,0,0,0)');
-        grad.addColorStop(0.55, 'rgba(8,8,12,0.72)');
-        grad.addColorStop(1, 'rgba(5,5,8,0.95)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
-
-        let cursorY = h - pad;
-
-        // CTA Button Pill at bottom
-        if (ctaText) {
-          ctx.font = `bold ${Math.round(w * 0.032)}px Inter, system-ui, sans-serif`;
-          const textMetrics = ctx.measureText(ctaText);
-          const btnW = Math.min(w - pad * 2, textMetrics.width + pad * 1.4);
-          const btnH = Math.round(w * 0.082);
-          const btnY = cursorY - btnH;
-
-          ctx.fillStyle = brand.primaryColor || '#10b981';
-          ctx.beginPath();
-          ctx.roundRect(pad, btnY, btnW, btnH, 18);
-          ctx.fill();
-
-          ctx.fillStyle = '#ffffff';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(ctaText, pad + Math.round(pad * 0.65), btnY + btnH / 2);
-
-          cursorY = btnY - Math.round(h * 0.035);
-        }
-
-        // Subheadline
-        if (subheadline) {
-          const subFontSize = Math.round(w * 0.031);
-          ctx.font = `500 ${subFontSize}px Inter, system-ui, sans-serif`;
-          ctx.fillStyle = 'rgba(240,240,245,0.9)';
-          const words = subheadline.split(' ');
-          const lines: string[] = [];
-          let line = '';
-          const maxW = w - pad * 2;
-          for (const word of words) {
-            const test = line ? `${line} ${word}` : word;
-            if (ctx.measureText(test).width > maxW) {
-              lines.push(line);
-              line = word;
-            } else {
-              line = test;
-            }
-          }
-          if (line) lines.push(line);
-
-          for (let i = lines.length - 1; i >= 0; i--) {
-            ctx.fillText(lines[i], pad, cursorY);
-            cursorY -= Math.round(subFontSize * 1.38);
-          }
-          cursorY -= Math.round(h * 0.015);
-        }
-
-        // Headline
-        if (headline) {
-          const headFontSize = Math.round(w * 0.056);
-          ctx.font = `800 ${headFontSize}px Inter, system-ui, sans-serif`;
-          ctx.fillStyle = '#ffffff';
-          const words = headline.split(' ');
-          const lines: string[] = [];
-          let line = '';
-          const maxW = w - pad * 2;
-          for (const word of words) {
-            const test = line ? `${line} ${word}` : word;
-            if (ctx.measureText(test).width > maxW) {
-              lines.push(line);
-              line = word;
-            } else {
-              line = test;
-            }
-          }
-          if (line) lines.push(line);
-
-          for (let i = lines.length - 1; i >= 0; i--) {
-            ctx.fillText(lines[i], pad, cursorY);
-            cursorY -= Math.round(headFontSize * 1.22);
-          }
-          cursorY -= Math.round(h * 0.02);
-        }
-
-        // Badge Pill
-        if (badgeText) {
-          const badgeFontSize = Math.round(w * 0.025);
-          ctx.font = `bold ${badgeFontSize}px Inter, system-ui, sans-serif`;
-          const bW = ctx.measureText(badgeText).width + 36;
-          const bH = Math.round(badgeFontSize * 2.1);
-          const bY = cursorY - bH;
-
-          ctx.fillStyle = 'rgba(255,255,255,0.16)';
-          ctx.beginPath();
-          ctx.roundRect(pad, bY, bW, bH, 999);
-          ctx.fill();
-
-          ctx.fillStyle = '#ffffff';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(badgeText, pad + 18, bY + bH / 2);
-        }
-      }
-
-      // 4. Draw Official Brand Logo Watermark if enabled
-      if (logoUrl && logoPlacement !== 'hidden') {
-        const logoImg = new Image();
-        logoImg.crossOrigin = 'anonymous';
-        await new Promise<void>((resolve) => {
-          logoImg.onload = () => resolve();
-          logoImg.onerror = () => resolve();
-          logoImg.src = logoUrl;
-        });
-
-        if (logoImg.width && logoImg.height) {
-          const scaleMap: Record<LogoSize, number> = { sm: 0.065, md: 0.088, lg: 0.115 };
-          const iconPx = Math.round(w * scaleMap[logoSize]);
-
-          if (logoPlacement === 'top_right_pill') {
-            ctx.font = `bold ${Math.round(iconPx * 0.42)}px Inter, system-ui, sans-serif`;
-            const nameW = ctx.measureText(brand.name).width;
-            const pillW = iconPx + nameW + 44;
-            const pillH = iconPx + 20;
-            const pillX = w - pad - pillW;
-            const pillY = pad;
-
-            ctx.fillStyle = 'rgba(10, 14, 24, 0.78)';
-            ctx.beginPath();
-            ctx.roundRect(pillX, pillY, pillW, pillH, 999);
-            ctx.fill();
-
-            ctx.drawImage(logoImg, pillX + 12, pillY + 10, iconPx, iconPx);
-            ctx.fillStyle = '#ffffff';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(brand.name, pillX + 12 + iconPx + 12, pillY + pillH / 2);
-          } else if (logoPlacement === 'top_left_mark') {
-            ctx.drawImage(logoImg, pad, pad, iconPx * 1.15, iconPx * 1.15);
-          } else if (logoPlacement === 'bottom_right_mark') {
-            ctx.drawImage(logoImg, w - pad - iconPx * 1.15, h - pad - iconPx * 1.15, iconPx * 1.15, iconPx * 1.15);
-          }
-        }
-      }
-
-      const dataUrl = canvas.toDataURL('image/png');
+      const dataUrl = await renderCompositeAdDataUrl(activePreset);
+      if (!dataUrl) throw new Error('Canvas unavailable');
       const a = document.createElement('a');
       a.href = dataUrl;
       a.download = `${brand.slug}-${activePreset.id}-ad.png`;
@@ -756,6 +765,70 @@ export function AdImageStudio({ brand, onSavePost, onUpdateBrand, onOpenSocialHu
     } finally {
       setIsExportingPng(false);
     }
+  };
+
+  // Export all 4 ad sizes (1:1 Square, 4:5 Portrait, 16:9 Landscape, 9:16 Vertical Story/Reel) in 1 click
+  const handleExportAllFourSizesPack = async () => {
+    if (!activeImageUrl || isExportingAllSizes) return;
+    setIsExportingAllSizes(true);
+    try {
+      for (const preset of PLATFORM_PRESETS) {
+        const dataUrl = await renderCompositeAdDataUrl(preset);
+        if (dataUrl) {
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `${brand.slug}-${preset.id}-${preset.dimensions.w}x${preset.dimensions.h}-ad.png`;
+          a.click();
+          await new Promise((r) => setTimeout(r, 260));
+        }
+      }
+      setStatusNotice(
+        `📦 Exported full 4-size Ad Pack (1:1 Square, 4:5 Portrait, 16:9 Card, 9:16 Vertical Story) for ${brand.name}!`
+      );
+    } catch {
+      setStatusNotice('Exported available ad sizes.');
+    } finally {
+      setIsExportingAllSizes(false);
+    }
+  };
+
+  // Apply 1-Click High-ROAS Ad Archetype Template
+  const handleApplyAdArchetype = (archetype: 'problem_solution' | 'review_proof' | 'founder_note' | 'flash_offer') => {
+    const cleanUrl = (brand.websiteUrl || `https://${brand.slug || 'evidraw'}.com`).replace(/^https?:\/\//, '');
+    if (archetype === 'problem_solution') {
+      setBadgeText(`❌ OLD WAY VS. ✅ ${brand.name.toUpperCase()}`);
+      setHeadline(`Stop Wasting Hours Doing ${brand.category || 'It'} Manually.`);
+      setSubheadline(`${brand.tagline || `Switch to ${brand.name} and automate your entire workflow in seconds.`}`);
+      setCtaText(`Switch to ${brand.name} →`);
+      setCaption(
+        `Most people still rely on guesswork and messy spreadsheets.\n\n${brand.name} replaces manual trial-and-error with one verified workspace built for ${brand.targetAudience || 'results'}.\n\n👉 Try it now at ${cleanUrl}`
+      );
+    } else if (archetype === 'review_proof') {
+      setBadgeText(`⭐⭐⭐⭐⭐ 4.9/5 VERIFIED USER REVIEW`);
+      setHeadline(`"I Wish I Found ${brand.name} Six Months Ago."`);
+      setSubheadline(`Trusted daily by ${brand.targetAudience || 'thousands of users'} for instant, verifiable results.`);
+      setCtaText(`See Why at ${cleanUrl} →`);
+      setCaption(
+        `"Before ${brand.name}, I was flying blind. Within 10 minutes of setting it up, everything clicked."\n\nSee why ${brand.targetAudience || 'creators & pros'} are switching to ${brand.name} 👉 ${cleanUrl}`
+      );
+    } else if (archetype === 'founder_note') {
+      setBadgeText(`📌 WHY WE BUILT ${brand.name.toUpperCase()}`);
+      setHeadline(`We Built ${brand.name} Because Existing Tools Were Broken.`);
+      setSubheadline(`Zero fluff. Just cold math, clean execution, and real transparency.`);
+      setCtaText(`Explore ${brand.name} Free →`);
+      setCaption(
+        `We got tired of bloated, overpriced tools that overpromise and underdeliver.\n\nSo we built ${brand.name}: ${brand.tagline}\n\n👉 Test it yourself at ${cleanUrl}`
+      );
+    } else if (archetype === 'flash_offer') {
+      setBadgeText(`⚡ LIMITED VIP ACCESS • ${brand.name.toUpperCase()}`);
+      setHeadline(`Unlock Full ${brand.name} Access Today.`);
+      setSubheadline(`Get instant access to ${brand.suggestedTopics?.[0] || brand.tagline} before the next window closes.`);
+      setCtaText(`Claim Instant Access →`);
+      setCaption(
+        `⚡ Ready to upgrade your workflow?\n\nLock in your ${brand.name} access today and start running ${brand.suggestedTopics?.[0] || 'at 100% capacity'} in under 2 minutes.\n\n👉 ${cleanUrl}`
+      );
+    }
+    setStatusNotice(`✨ Applied high-ROAS "${archetype.replace('_', ' ').toUpperCase()}" ad template for ${brand.name}!`);
   };
 
   const handleQueueAdPost = (status: 'draft' | 'scheduled') => {
@@ -1375,6 +1448,17 @@ export function AdImageStudio({ brand, onSavePost, onUpdateBrand, onOpenSocialHu
                   <span>{isExportingPng ? 'Exporting PNG...' : `Download ${activePreset.ratio} Ad PNG`}</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={handleExportAllFourSizesPack}
+                  disabled={isExportingAllSizes}
+                  className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all"
+                  title="Download all 4 ad ratios (1:1 Square, 4:5 Portrait, 16:9 Landscape, 9:16 Story/Reel) in 1 click"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{isExportingAllSizes ? 'Exporting 4 Sizes...' : '📦 Export All 4 Sizes'}</span>
+                </button>
+
                 {brand.websiteMobileScreenshotUrl && (
                   <button
                     type="button"
@@ -1749,6 +1833,30 @@ export function AdImageStudio({ brand, onSavePost, onUpdateBrand, onOpenSocialHu
                 </button>
               </div>
 
+              {/* 1-Click High-ROAS Ad Archetype Templates */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase text-neutral-400">
+                  1-Click High-ROAS Ad Archetype:
+                </span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: 'problem_solution' as const, label: '🔥 Old vs. New Way' },
+                    { id: 'review_proof' as const, label: '⭐ 5-Star Review Proof' },
+                    { id: 'founder_note' as const, label: '📌 Founder Note' },
+                    { id: 'flash_offer' as const, label: '⚡ VIP / Flash Offer' }
+                  ].map((arch) => (
+                    <button
+                      key={arch.id}
+                      type="button"
+                      onClick={() => handleApplyAdArchetype(arch.id)}
+                      className="px-2.5 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:border-emerald-500 text-[11px] font-bold text-neutral-700 dark:text-neutral-200 text-left transition-all"
+                    >
+                      {arch.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-neutral-400">Top Callout Badge</label>
@@ -1897,6 +2005,116 @@ export function AdImageStudio({ brand, onSavePost, onUpdateBrand, onOpenSocialHu
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Step 5: Paid Ad Manager Spec & UTM Campaign Builder (Meta Ads, Google PMax, TikTok Ads) */}
+            <div className="p-4 rounded-3xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200 dark:border-neutral-800 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                  <BarChart3 className="w-4 h-4" />
+                  5. Paid Ad Manager Copy &amp; UTM Pack
+                </h3>
+                <div className="flex items-center gap-1 bg-white dark:bg-neutral-900 p-0.5 rounded-xl border border-neutral-200 dark:border-neutral-700 text-[10px] font-extrabold">
+                  {(
+                    [
+                      { id: 'meta', label: 'Meta Ads' },
+                      { id: 'google', label: 'Google PMax' },
+                      { id: 'tiktok', label: 'TikTok Ads' }
+                    ] as const
+                  ).map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setActivePaidPlatform(p.id)}
+                      className={`px-2 py-1 rounded-lg transition-all ${
+                        activePaidPlatform === p.id
+                          ? 'bg-indigo-600 text-white'
+                          : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(() => {
+                const baseSite = (brand.websiteUrl || `https://${brand.slug || 'evidraw'}.com`).replace(/\/$/, '');
+                const utmUrl = `${baseSite}/?utm_source=${activePaidPlatform}&utm_medium=paid_social&utm_campaign=${encodeURIComponent(
+                  (brand.slug || 'brand') + '_' + activePreset.id
+                )}`;
+                const shortHeadline40 = (headline || brand.tagline || brand.name).slice(0, 40);
+                const shortHeadline30 = (headline || brand.name).slice(0, 30);
+                const shortDesc30 = (ctaText || `Try ${brand.name} today`).slice(0, 30);
+                const shortDesc90 = (subheadline || brand.tagline || caption).slice(0, 90);
+
+                const specString =
+                  activePaidPlatform === 'meta'
+                    ? `META ADS MANAGER SPEC (${brand.name})\nPrimary Text: ${caption}\nHeadline (40c): ${shortHeadline40}\nDescription (30c): ${shortDesc30}\nCTA Button: Learn More / Sign Up\nDestination URL: ${utmUrl}`
+                    : activePaidPlatform === 'google'
+                    ? `GOOGLE ADS / PERFORMANCE MAX SPEC (${brand.name})\nHeadline 1 (30c): ${shortHeadline30}\nHeadline 2 (30c): ${brand.name} Official\nHeadline 3 (30c): ${(badgeText || 'Try Free Today').slice(0, 30)}\nDescription 1 (90c): ${shortDesc90}\nDescription 2 (90c): ${(caption || '').replace(/\n+/g, ' ').slice(0, 90)}\nFinal URL: ${utmUrl}`
+                    : `TIKTOK SPARK / FEED AD SPEC (${brand.name})\nAd Display Text (100c): ${(headline + ' — ' + subheadline).slice(0, 100)}\nCall To Action: Sign Up / Learn More\nLanding Page URL: ${utmUrl}`;
+
+                return (
+                  <div className="space-y-2 text-[11px]">
+                    <div className="p-2.5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 space-y-1.5 font-mono text-[10.5px]">
+                      {activePaidPlatform === 'meta' && (
+                        <>
+                          <div>
+                            <span className="text-neutral-400 font-sans font-bold">Headline (≤40 chars): </span>
+                            <span className="text-neutral-900 dark:text-white font-bold">{shortHeadline40}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-400 font-sans font-bold">Link Description (≤30c): </span>
+                            <span className="text-neutral-700 dark:text-neutral-300">{shortDesc30}</span>
+                          </div>
+                        </>
+                      )}
+                      {activePaidPlatform === 'google' && (
+                        <>
+                          <div>
+                            <span className="text-neutral-400 font-sans font-bold">RSA Headline (≤30c): </span>
+                            <span className="text-neutral-900 dark:text-white font-bold">{shortHeadline30}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-400 font-sans font-bold">RSA Description (≤90c): </span>
+                            <span className="text-neutral-700 dark:text-neutral-300">{shortDesc90}</span>
+                          </div>
+                        </>
+                      )}
+                      {activePaidPlatform === 'tiktok' && (
+                        <div>
+                          <span className="text-neutral-400 font-sans font-bold">TikTok Hook Copy (≤100c): </span>
+                          <span className="text-neutral-900 dark:text-white font-bold">
+                            {(headline + ' — ' + subheadline).slice(0, 100)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="truncate">
+                        <span className="text-neutral-400 font-sans font-bold">UTM Tracking Link: </span>
+                        <span className="text-indigo-600 dark:text-indigo-400">{utmUrl}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(specString);
+                        setCopiedPaidPack(true);
+                        setTimeout(() => setCopiedPaidPack(false), 2000);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      {copiedPaidPack ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>
+                        {copiedPaidPack
+                          ? 'Copied Complete Ad Manager Spec & UTM Link!'
+                          : `Copy ${activePaidPlatform.toUpperCase()} Ad Manager Spec + UTM Link`}
+                      </span>
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
