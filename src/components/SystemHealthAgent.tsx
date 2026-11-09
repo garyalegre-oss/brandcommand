@@ -114,7 +114,7 @@ export function SystemHealthAgent({
               'instagram',
               'tiktok',
               'youtube',
-              'x'
+              'twitter'
             ];
             modified = true;
           }
