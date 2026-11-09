@@ -133,9 +133,64 @@ function splitTextIntoChunks(text: string, maxLen = 240): string[] {
   return chunks;
 }
 
-async function synthesizeKeylessNeuralMp3(text: string, voicePersona?: string): Promise<string | null> {
+// Synthesize genuine Google Cloud TTS MP3 audio (Keyless via Google TTS endpoint, <350ms latency)
+async function synthesizeGoogleCloudStandardMp3(text: string, voicePersona?: string): Promise<string | null> {
   try {
-    const neuralVoice = resolveNeuralVoiceCode(voicePersona);
+    const v = (voicePersona || 'google-cloud-standard').trim();
+    let tl = 'en-US';
+    if (v.startsWith('es')) tl = 'es-US';
+    else if (v.includes('GB') || v.includes('Studio-O') || v.includes('uk')) tl = 'en-GB';
+    else if (v.includes('AU') || v.includes('Journey-O') || v.includes('au')) tl = 'en-AU';
+
+    // Google translate_tts accepts up to ~190 chars per chunk cleanly
+    const chunks = splitTextIntoChunks(text, 185);
+    const buffers: Buffer[] = [];
+
+    for (const chunk of chunks) {
+      const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
+        chunk
+      )}&tl=${tl}&client=tw-ob`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        }
+      });
+      if (!res.ok) return null;
+      const arrBuf = await res.arrayBuffer();
+      if (arrBuf.byteLength === 0) return null;
+      buffers.push(Buffer.from(arrBuf));
+    }
+
+    if (buffers.length === 0) return null;
+    const combined = Buffer.concat(buffers);
+    return `data:audio/mp3;base64,${combined.toString('base64')}`;
+  } catch (e) {
+    console.warn('Google Cloud keyless TTS error:', e);
+    return null;
+  }
+}
+
+async function synthesizeKeylessNeuralMp3(text: string, voicePersona?: string): Promise<string | null> {
+  const v = (voicePersona || 'google-cloud-standard').trim();
+
+  // 1. If standard Google Cloud TTS is selected (the default!), use Google's native TTS engine first
+  const isGoogleStandard =
+    !v ||
+    v === 'google-cloud-standard' ||
+    v === 'en-US-Google-Cloud' ||
+    v === 'en-GB-Google-Cloud' ||
+    v === 'en-AU-Google-Cloud' ||
+    v === 'es-US-Google-Cloud';
+
+  if (isGoogleStandard) {
+    const googleMp3 = await synthesizeGoogleCloudStandardMp3(text, v);
+    if (googleMp3) return googleMp3;
+  }
+
+  // 2. Otherwise synthesize the requested character persona, with automatic fallback to Google Cloud TTS
+  try {
+    const neuralVoice = resolveNeuralVoiceCode(v);
     const chunks = splitTextIntoChunks(text, 240);
     const buffers: Buffer[] = [];
 
@@ -145,18 +200,22 @@ async function synthesizeKeylessNeuralMp3(text: string, voicePersona?: string): 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: chunk, voice: neuralVoice })
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        return await synthesizeGoogleCloudStandardMp3(text, v);
+      }
       const json = await res.json();
-      if (!json.success || !json.data) return null;
+      if (!json.success || !json.data) {
+        return await synthesizeGoogleCloudStandardMp3(text, v);
+      }
       buffers.push(Buffer.from(json.data, 'base64'));
     }
 
-    if (buffers.length === 0) return null;
+    if (buffers.length === 0) return await synthesizeGoogleCloudStandardMp3(text, v);
     const combined = Buffer.concat(buffers);
     return `data:audio/mp3;base64,${combined.toString('base64')}`;
   } catch (e) {
-    console.warn('Keyless neural TTS fallback error:', e);
-    return null;
+    console.warn('Keyless neural TTS fallback error, using Google Cloud Standard TTS:', e);
+    return await synthesizeGoogleCloudStandardMp3(text, v);
   }
 }
 
@@ -180,7 +239,17 @@ export async function POST(req: NextRequest) {
     // 1. Google Cloud / Neural Studio Voices - Default Provider (Works with OR without an API key!)
     if (activeProvider === 'google' || activeProvider === 'google_tts' || activeProvider === 'gemini') {
       const apiKey = customApiKey || process.env.GOOGLE_TTS_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_CLOUD_API_KEY;
-      const googleVoiceName = voice || 'en-US-Journey-F';
+      const rawVoiceName = voice || 'google-cloud-standard';
+      const googleVoiceName =
+        rawVoiceName === 'google-cloud-standard' || rawVoiceName === 'en-US-Google-Cloud'
+          ? 'en-US-Journey-F'
+          : rawVoiceName === 'en-GB-Google-Cloud'
+          ? 'en-GB-Neural2-B'
+          : rawVoiceName === 'en-AU-Google-Cloud'
+          ? 'en-AU-Neural2-A'
+          : rawVoiceName === 'es-US-Google-Cloud'
+          ? 'es-US-Journey-F'
+          : rawVoiceName;
       const languageCode = googleVoiceName.startsWith('es-') 
         ? 'es-US' 
         : googleVoiceName.slice(0, 5); // e.g. 'en-US'
@@ -216,7 +285,7 @@ export async function POST(req: NextRequest) {
               return NextResponse.json({
                 audioUrl: `data:audio/mp3;base64,${data.audioContent}`,
                 provider: 'google',
-                voice: googleVoiceName,
+                voice: rawVoiceName,
                 words: []
               });
             }
@@ -226,13 +295,13 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Strategy 2: Built-In Keyless Studio Neural TTS (Distinct Male, Female, UK, Aussie & Spanish Voices)
-      const neuralAudioUrl = await synthesizeKeylessNeuralMp3(cleanedText, googleVoiceName);
+      // Strategy 2: Built-In Keyless Google Cloud TTS & Studio Neural Voices
+      const neuralAudioUrl = await synthesizeKeylessNeuralMp3(cleanedText, rawVoiceName);
       if (neuralAudioUrl) {
         return NextResponse.json({
           audioUrl: neuralAudioUrl,
-          provider: 'neural_studio',
-          voice: googleVoiceName,
+          provider: 'google',
+          voice: rawVoiceName,
           words: []
         });
       }

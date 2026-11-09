@@ -740,25 +740,9 @@ type StudioTab = 'copilot' | 'broll' | 'graphics' | 'layout' | 'qa' | 'voice';
 type SoundwaveStyle = 'off' | 'neon_bars' | 'rainbow_eq' | 'minimal_dots';
 type LowerThirdStyle = 'glass_card' | 'breaking_ticker' | 'minimal_pill' | 'off';
 
-function getRecommendedVoice(category?: string): string {
-  switch (category) {
-    case 'lottery-gaming-tools':
-    case 'gaming':
-    case 'fintech':
-    case 'tech':
-      return 'en-US-Journey-D'; // Deep & confident narrator
-    case 'beauty':
-    case 'fashion':
-    case 'lifestyle':
-    case 'wellness':
-      return 'en-US-Journey-F'; // Expressive & warm storyteller
-    case 'food':
-    case 'travel':
-    case 'creator':
-      return 'en-US-Journey-O'; // Dynamic modern reviewer
-    default:
-      return 'en-US-Journey-D';
-  }
+function getRecommendedVoice(_category?: string): string {
+  // Always default to Google Cloud TTS as the standard pre-selected voice
+  return 'google-cloud-standard';
 }
 
 export function VideoPlayerPreview({
@@ -1372,16 +1356,10 @@ Return valid JSON matching the VideoScript schema.`;
           setMediaApiKey(savedKey);
         }
       }
-      const savedProvider = localStorage.getItem('brandcommand_voice_provider');
-      if (savedProvider) setVoiceProvider(savedProvider as 'google' | 'openai' | 'elevenlabs');
-      else setVoiceProvider('google');
-
-      const savedAuto = localStorage.getItem('brandcommand_auto_generate_voice');
-      if (savedAuto !== null) {
-        setAutoGenerateVoice(savedAuto === 'true');
-      } else {
-        setAutoGenerateVoice(true);
-      }
+      setVoiceProvider('google');
+      localStorage.setItem('brandcommand_voice_provider', 'google');
+      setAutoGenerateVoice(true);
+      localStorage.setItem('brandcommand_auto_generate_voice', 'true');
 
       // Load saved media API key (auto-fallback to Google Cloud / Gemini key already entered)
       const savedMediaKey = localStorage.getItem('brandcommand_media_api_key') || localStorage.getItem('brandcommand_google_cloud_tts_key') || localStorage.getItem('brandcommand_gemini_key') || '';
@@ -2871,25 +2849,40 @@ Return valid JSON matching the VideoScript schema.`;
     return () => clearInterval(timer);
   }, [isPlaying, audioUrl, totalDuration, sceneDurations, sceneTimeBoundaries]);
 
-  // Play / Pause toggle
-  const togglePlay = () => {
+  // Automatically start playing Google Cloud TTS audio as soon as it finishes synthesizing if playback is active
+  useEffect(() => {
+    if (isPlaying && audioUrl && audioRef.current) {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      audioRef.current.muted = isMuted;
+      if (audioRef.current.paused) {
+        audioRef.current.play().catch(() => {});
+      }
+    }
+  }, [audioUrl, isPlaying, isMuted]);
+
+  // Play / Pause toggle (Always uses Google Cloud TTS standard voice first)
+  const togglePlay = async () => {
     if (!isPlaying) {
       setIsPlaying(true);
       if (brollVideoRef.current) {
         brollVideoRef.current.play().catch(() => {});
       }
-      if (audioUrl && audioRef.current) {
-        audioRef.current.muted = isMuted;
-        audioRef.current.play().catch(() => {});
-      } else {
-        // Synchronize starting time with current progress percentage
-        currentTimeRef.current = (progress / 100) * totalDuration;
-        speakCurrentScene(currentSceneIdxRef.current);
-      }
       // Start background music bed
       if (selectedSoundtrack !== 'none' && !isMuted) {
         soundbedEngine.play(selectedSoundtrack);
         soundbedEngine.setVolume(soundtrackVolume);
+      }
+      if (audioUrl && audioRef.current) {
+        audioRef.current.muted = isMuted;
+        audioRef.current.play().catch(() => {});
+      } else if (!isGeneratingVoice) {
+        const ok = await triggerVoiceGeneration({ autoplay: true });
+        if (!ok) {
+          currentTimeRef.current = (progress / 100) * totalDuration;
+          speakCurrentScene(currentSceneIdxRef.current);
+        }
       }
     } else {
       setIsPlaying(false);
@@ -4331,6 +4324,10 @@ Return valid JSON matching the VideoScript schema.`;
                   title="Switch AI Voiceover Persona (Synthesizes Neural MP3 Audio Instantly)"
                   className="px-2 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 font-bold text-[10.5px] cursor-pointer focus:outline-none hover:border-neutral-400 max-w-[128px] truncate"
                 >
+                  <option value="google-cloud-standard">☁️ Google Cloud TTS</option>
+                  <option value="en-GB-Google-Cloud">☁️ Google Cloud (UK)</option>
+                  <option value="en-AU-Google-Cloud">☁️ Google Cloud (AU)</option>
+                  <option value="es-US-Google-Cloud">☁️ Google Cloud (ES)</option>
                   <option value="en-US-Journey-F">🎙️ Jessie (Viral F)</option>
                   <option value="en-US-Journey-D">🎙️ Marcus (Deep M)</option>
                   <option value="en-US-Neural2-D">🎙️ Liam (Creator M)</option>
@@ -6065,6 +6062,10 @@ Return valid JSON matching the VideoScript schema.`;
                 >
                   {voiceProvider === 'google' ? (
                     <>
+                      <option value="google-cloud-standard">☁️ Google Cloud TTS (Standard US - Default)</option>
+                      <option value="en-GB-Google-Cloud">☁️ Google Cloud TTS (British UK)</option>
+                      <option value="en-AU-Google-Cloud">☁️ Google Cloud TTS (Australian)</option>
+                      <option value="es-US-Google-Cloud">☁️ Google Cloud TTS (Spanish / Español)</option>
                       <option value="en-US-Journey-D">Journey Male (Deep & Confident - Recommended for {brand.name})</option>
                       <option value="en-US-Journey-F">Journey Female (Expressive & Warm - Best for TikTok & Reels)</option>
                       <option value="en-US-Journey-O">Journey Modern Female (Clear & Dynamic Product Reviewer)</option>
