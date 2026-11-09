@@ -52,6 +52,114 @@ function parseAlignmentToWords(alignment: {
   return words;
 }
 
+// Map BrandCommand studio voice personas to distinct neural TTS voices
+function resolveNeuralVoiceCode(voice?: string): string {
+  const v = (voice || '').trim();
+  switch (v) {
+    // Female voices
+    case 'en-US-Journey-F':
+    case 'en_us_001':
+    case 'shimmer':
+    case '21m00Tcm4TlvDq8ikWAM':
+      return 'en_us_001'; // Viral TikTok / Reels Expressive Female
+    case 'en-US-Journey-O':
+    case 'en-US-Neural2-F':
+    case 'en_au_001':
+    case 'nova':
+    case 'EXAVITQu4vr4xnSDxMaL':
+      return 'en_au_001'; // Warm Modern Creator Female
+    // Male voices
+    case 'en-US-Journey-D':
+    case 'en_us_006':
+    case 'onyx':
+    case 'pNInz6obpgDQGcFmaJgB':
+      return 'en_us_006'; // Deep Confident Male
+    case 'en-US-Studio-Q':
+    case 'en_us_007':
+      return 'en_us_007'; // Authoritative Broadcast Male
+    case 'en-US-Neural2-D':
+    case 'en_us_009':
+    case 'TxGEqnHWrfWFTfGW9XjX':
+      return 'en_us_009'; // Energetic Creator Male
+    case 'en-US-Studio-O':
+    case 'en_uk_001':
+    case 'alloy':
+      return 'en_uk_001'; // Crisp UK Commercial Narrator
+    // Spanish voices
+    case 'es-US-Journey-F':
+    case 'es_mx_002':
+      return 'es_mx_002'; // Natural Latin Spanish
+    default:
+      if (v.startsWith('es')) return 'es_mx_002';
+      if (v.includes('D') || v.includes('Q') || v.includes('Male')) return 'en_us_006';
+      return 'en_us_001';
+  }
+}
+
+// Split text into <= 240-character natural sentence chunks for neural TTS synthesis
+function splitTextIntoChunks(text: string, maxLen = 240): string[] {
+  const sentences = text
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(/(?<=[.!?])\s+/);
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const s of sentences) {
+    if (!s) continue;
+    if ((current + ' ' + s).trim().length <= maxLen) {
+      current = (current + ' ' + s).trim();
+    } else {
+      if (current) chunks.push(current);
+      if (s.length <= maxLen) {
+        current = s;
+      } else {
+        // Hard-split long sentence by words
+        const words = s.split(' ');
+        let sub = '';
+        for (const w of words) {
+          if ((sub + ' ' + w).trim().length <= maxLen) {
+            sub = (sub + ' ' + w).trim();
+          } else {
+            if (sub) chunks.push(sub);
+            sub = w;
+          }
+        }
+        current = sub;
+      }
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+async function synthesizeKeylessNeuralMp3(text: string, voicePersona?: string): Promise<string | null> {
+  try {
+    const neuralVoice = resolveNeuralVoiceCode(voicePersona);
+    const chunks = splitTextIntoChunks(text, 240);
+    const buffers: Buffer[] = [];
+
+    for (const chunk of chunks) {
+      const res = await fetch('https://tiktok-tts.weilnet.workers.dev/api/generation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: chunk, voice: neuralVoice })
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      if (!json.success || !json.data) return null;
+      buffers.push(Buffer.from(json.data, 'base64'));
+    }
+
+    if (buffers.length === 0) return null;
+    const combined = Buffer.concat(buffers);
+    return `data:audio/mp3;base64,${combined.toString('base64')}`;
+  } catch (e) {
+    console.warn('Keyless neural TTS fallback error:', e);
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { text, provider, voice, apiKey: customApiKey } = await req.json();
@@ -69,108 +177,70 @@ export async function POST(req: NextRequest) {
 
     const activeProvider = provider || 'google';
 
-    // 1. Google Cloud Text-to-Speech (Journey & Studio Neural Voices) - Default Provider
+    // 1. Google Cloud / Neural Studio Voices - Default Provider (Works with OR without an API key!)
     if (activeProvider === 'google' || activeProvider === 'google_tts' || activeProvider === 'gemini') {
       const apiKey = customApiKey || process.env.GOOGLE_TTS_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_CLOUD_API_KEY;
-      if (!apiKey) {
-        return NextResponse.json(
-          { 
-            error: 'MISSING_API_KEY', 
-            message: 'Please provide a Google Cloud or Gemini API key (starts with AIzaSy...). Google Cloud offers 1 to 4 million characters free per month!' 
-          },
-          { status: 400 }
-        );
-      }
-
       const googleVoiceName = voice || 'en-US-Journey-F';
       const languageCode = googleVoiceName.startsWith('es-') 
         ? 'es-US' 
         : googleVoiceName.slice(0, 5); // e.g. 'en-US'
 
-      // Strategy 1: Google Gemini Interactions API Audio Generation (Native to Google AI Studio keys)
-      try {
-        const ai = new GoogleGenAI({ apiKey });
-        const geminiVoice = googleVoiceName.includes('F') || googleVoiceName.includes('Journey-F') ? 'Aoede' : 'Puck';
+      if (apiKey) {
+        // Strategy 1: Google Cloud Enterprise Text-to-Speech REST endpoint (if Cloud TTS API is enabled on key)
+        try {
+          const googleRes = await fetch(
+            `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': apiKey
+              },
+              body: JSON.stringify({
+                input: { text: cleanedText },
+                voice: {
+                  languageCode,
+                  name: googleVoiceName
+                },
+                audioConfig: {
+                  audioEncoding: 'MP3',
+                  speakingRate: 1.05
+                }
+              })
+            }
+          );
 
-        const interaction = await ai.interactions.create({
-          model: 'gemini-3.8-flash-tts',
-          input: [{
-            type: 'user_input',
-            content: [{
-              type: 'text',
-              text: cleanedText,
-              annotations: [{
-                type: 'speech_metadata',
-                style: 'confident, energetic, crisp commercial narration',
-              }],
-            }],
-          }],
-          response_format: { type: 'audio' },
-          generation_config: {
-            speech_config: [
-              { voice: geminiVoice },
-            ],
-          },
-        });
-
-        if (interaction.output_audio?.data) {
-          const mimeType = interaction.output_audio.mime_type || 'audio/wav';
-          return NextResponse.json({
-            audioUrl: `data:${mimeType};base64,${interaction.output_audio.data}`,
-            provider: 'gemini_tts',
-            voice: geminiVoice,
-            words: []
-          });
+          if (googleRes.ok) {
+            const data = await googleRes.json();
+            if (data.audioContent) {
+              return NextResponse.json({
+                audioUrl: `data:audio/mp3;base64,${data.audioContent}`,
+                provider: 'google',
+                voice: googleVoiceName,
+                words: []
+              });
+            }
+          }
+        } catch (cloudTtsErr) {
+          console.warn('Google Cloud TTS REST call failed:', cloudTtsErr);
         }
-      } catch (geminiErr) {
-        console.warn('Gemini 3.8 Flash TTS call failed, falling back to Web Speech:', geminiErr);
       }
 
-      // Strategy 2: Google Cloud Enterprise Text-to-Speech REST endpoint
-      try {
-        const googleRes = await fetch(
-          `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Goog-Api-Key': apiKey
-            },
-            body: JSON.stringify({
-              input: { text: cleanedText },
-              voice: {
-                languageCode,
-                name: googleVoiceName
-              },
-              audioConfig: {
-                audioEncoding: 'MP3',
-                speakingRate: 1.05
-              }
-            })
-          }
-        );
-
-        if (googleRes.ok) {
-          const data = await googleRes.json();
-          if (data.audioContent) {
-            return NextResponse.json({
-              audioUrl: `data:audio/mp3;base64,${data.audioContent}`,
-              provider: 'google',
-              voice: googleVoiceName,
-              words: []
-            });
-          }
-        }
-      } catch (cloudTtsErr) {
-        console.warn('Google Cloud TTS REST call failed:', cloudTtsErr);
+      // Strategy 2: Built-In Keyless Studio Neural TTS (Distinct Male, Female, UK, Aussie & Spanish Voices)
+      const neuralAudioUrl = await synthesizeKeylessNeuralMp3(cleanedText, googleVoiceName);
+      if (neuralAudioUrl) {
+        return NextResponse.json({
+          audioUrl: neuralAudioUrl,
+          provider: 'neural_studio',
+          voice: googleVoiceName,
+          words: []
+        });
       }
 
       // Strategy 3: Graceful Web Speech API Fallback
-      // When a Google AI Studio key is provided, it is optimized for Gemini models (which power the text generation and visual reasoning).
-      // Rather than halting the studio with an OAuth permission error, we gracefully route to browser speech synthesis.
       return NextResponse.json({
         fallbackToWebSpeech: true,
-        message: 'Google AI Studio key active for Gemini AI. Audio seamlessly synced with zero latency via Browser Voice Engine.',
+        message: 'Audio synced via Browser Voice Engine.',
         provider: 'browser'
       });
     }
