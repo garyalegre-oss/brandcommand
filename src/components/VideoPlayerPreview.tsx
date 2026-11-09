@@ -507,7 +507,134 @@ function getUgcStoryVariants(brand: Brand, script?: VideoScript): string[] {
   ];
 }
 
-type LayoutMode = 'dynamic_cuts' | 'ugc_creator' | 'showcase' | 'split';
+export interface MemeReelTemplate {
+  topCaption: string;
+  bottomPunchline: string;
+  presetId: string;
+  memeFormat: 'white_bar' | 'impact_top_bottom' | 'vs_split';
+}
+
+function getMemeTemplatesForBrand(brand: Brand, script?: VideoScript): MemeReelTemplate[] {
+  const slug = (brand.slug || brand.name || '').toLowerCase();
+  if (slug.includes('evidraw')) {
+    return [
+      {
+        topCaption: `Bro swearing he "almost played those exact Lotto Max numbers" with zero proof 💀\nMe pulling up my timestamped pre-draw Evidraw portfolio:`,
+        bottomPunchline: `Screenshots lie. Pre-draw timestamps don't 📊`,
+        presetId: 'ugc_react_overthinking_woman',
+        memeFormat: 'white_bar'
+      },
+      {
+        topCaption: `Nobody:\nMe at 2:14 AM auditing 50 Lotto 6/49 draws on Evidraw before locking my wheeling matrix:`,
+        bottomPunchline: `Let the cold math judge the system 🧠`,
+        presetId: 'ugc_react_surprised_man',
+        memeFormat: 'white_bar'
+      },
+      {
+        topCaption: `Playing random quick-picks on gut feelings ❌\nLocking verifiable pre-draw wheeling portfolios on Evidraw ✅`,
+        bottomPunchline: `100% Verifiable Draw Tracking • @evidraw`,
+        presetId: 'ugc_react_nodding_man',
+        memeFormat: 'vs_split'
+      },
+      {
+        topCaption: `POV: Your friend edits his paper notes AFTER the jackpot numbers drop`,
+        bottomPunchline: `Put it in Evidraw before the draw closes or it didn't happen 😐`,
+        presetId: 'ugc_react_serious_girl',
+        memeFormat: 'impact_top_bottom'
+      }
+    ];
+  }
+  if (slug.includes('salon') || slug.includes('garrido')) {
+    return [
+      {
+        topCaption: `When a client cancels 15 minutes before a 3-hour balayage appointment 😤\nWatch ${brand.name} auto-fill the chair from the VIP waitlist in 30 seconds:`,
+        bottomPunchline: `Zero empty chairs. Zero stress ✨`,
+        presetId: 'ugc_react_smiling_blonde',
+        memeFormat: 'white_bar'
+      },
+      {
+        topCaption: `Showing your stylist a heavily filtered AI Pinterest photo hoping for a miracle 💀\nBooking at ${brand.name} where they map custom formula to your hair history:`,
+        bottomPunchline: `Seamless grow-out for months 💇‍♀️`,
+        presetId: 'ugc_react_decision_woman',
+        memeFormat: 'white_bar'
+      },
+      {
+        topCaption: `Chasing DMs at 11pm to confirm appointments ❌\nAutomated 1-click booking & waitlist fill with ${brand.name} ✅`,
+        bottomPunchline: `Work smarter behind the chair • @${brand.slug.replace(/-/g, '')}`,
+        presetId: 'ugc_react_nodding_man',
+        memeFormat: 'vs_split'
+      }
+    ];
+  }
+  if (slug.includes('optioncove')) {
+    return [
+      {
+        topCaption: `Traders staring at 14 lagging indicators while the 0DTE move already happened 💀\nMe watching live institutional sweep flow on OptionCove:`,
+        bottomPunchline: `Follow the tape, not hindsight callouts 📈`,
+        presetId: 'ugc_react_nodding_man',
+        memeFormat: 'white_bar'
+      },
+      {
+        topCaption: `Discord gurus posting "easy +400%" screenshots 3 hours after market close 🤨\nOptionCove flagging the unusual call sweep before the bell:`,
+        bottomPunchline: `Real-time gamma & flow in one terminal ⚡`,
+        presetId: 'ugc_react_overthinking_woman',
+        memeFormat: 'white_bar'
+      },
+      {
+        topCaption: `Guessing entries off noisy 1-minute candles ❌\nTracking live institutional net delta & gamma walls on OptionCove ✅`,
+        bottomPunchline: `Trade with institutional clarity • @optioncove`,
+        presetId: 'ugc_react_surprised_man',
+        memeFormat: 'vs_split'
+      }
+    ];
+  }
+  if (slug.includes('varbona')) {
+    return [
+      {
+        topCaption: `When everyone in your fantasy league drafts the exact same 11 superstars by Week 3 😐\nMoving the group chat to Varbona with live U-21 transfer market values:`,
+        bottomPunchline: `Now we see who actually knows ball ⚽`,
+        presetId: 'ugc_react_serious_girl',
+        memeFormat: 'white_bar'
+      },
+      {
+        topCaption: `Nobody:\nMe scouting undervalued 19-year-old wingers on Varbona at 1:30 AM before matchday locks:`,
+        bottomPunchline: `Real salary cap. Live market prices 🏆`,
+        presetId: 'ugc_react_surprised_man',
+        memeFormat: 'white_bar'
+      }
+    ];
+  }
+
+  const cleanHook = (script?.hook || `Trying to manage ${brand.category || 'everything'} across 6 messy tabs`).replace(/["']/g, '');
+  return [
+    {
+      topCaption: `Nobody:\nMe trying to do ${brand.category || 'this'} the old manual way before discovering ${brand.name}:`,
+      bottomPunchline: `Switched to ${brand.name} and never looked back 💀`,
+      presetId: 'ugc_react_frustrated_woman',
+      memeFormat: 'white_bar'
+    },
+    {
+      topCaption: `When someone says "${cleanHook.slice(0, 68)}..." 🤨\nMe pulling up ${brand.name} in 2 clicks:`,
+      bottomPunchline: `Work smarter with ${brand.name} ⚡`,
+      presetId: 'ugc_react_overthinking_woman',
+      memeFormat: 'white_bar'
+    },
+    {
+      topCaption: `Wasting hours doing it manually ❌\nAutomating the entire workflow inside ${brand.name} ✅`,
+      bottomPunchline: `Built for ${brand.targetAudience || 'modern teams'} • @${brand.slug.replace(/-/g, '')}`,
+      presetId: 'ugc_react_nodding_man',
+      memeFormat: 'vs_split'
+    },
+    {
+      topCaption: `POV: You finally automated your workflow with ${brand.name} and finished by 10 AM`,
+      bottomPunchline: `Why didn't I switch sooner? 🤯`,
+      presetId: 'ugc_react_surprised_man',
+      memeFormat: 'impact_top_bottom'
+    }
+  ];
+}
+
+type LayoutMode = 'dynamic_cuts' | 'ugc_creator' | 'meme_reel' | 'showcase' | 'split';
 type SubtitleStyle = 'hormozi' | 'cyber' | 'luxury';
 type StudioTab = 'copilot' | 'broll' | 'graphics' | 'layout' | 'qa' | 'voice';
 type SoundwaveStyle = 'off' | 'neon_bars' | 'rainbow_eq' | 'minimal_dots';
@@ -578,6 +705,20 @@ export function VideoPlayerPreview({
   const [showUgcEditorDrawer, setShowUgcEditorDrawer] = useState<boolean>(false);
   const [showAdvancedStudio, setShowAdvancedStudio] = useState<boolean>(false);
 
+  // Meme Reel Mode State
+  const [memeIdx, setMemeIdx] = useState<number>(0);
+  const [memeTopCaption, setMemeTopCaption] = useState<string>(
+    () => getMemeTemplatesForBrand(brand, script)[0].topCaption
+  );
+  const [memeBottomPunchline, setMemeBottomPunchline] = useState<string>(
+    () => getMemeTemplatesForBrand(brand, script)[0].bottomPunchline
+  );
+  const [memeFormat, setMemeFormat] = useState<'white_bar' | 'impact_top_bottom' | 'vs_split'>(
+    () => getMemeTemplatesForBrand(brand, script)[0].memeFormat
+  );
+  const [memeCardTheme, setMemeCardTheme] = useState<'light' | 'dark'>('light');
+  const [showMemeEditorDrawer, setShowMemeEditorDrawer] = useState<boolean>(false);
+
   const matchedUgcEmotion = useMemo(
     () => matchUgcReactionToScript(ugcStoryText, script?.hook),
     [ugcStoryText, script?.hook]
@@ -594,11 +735,45 @@ export function VideoPlayerPreview({
     } else {
       setSelectedUgcCreatorId(matched.presetId);
     }
-    if (script?.ugcStoryText || script?.aiDirector?.layout === 'ugc_creator') {
+    const memeTemplates = getMemeTemplatesForBrand(brand, script);
+    setMemeIdx(0);
+    setMemeTopCaption(memeTemplates[0].topCaption);
+    setMemeBottomPunchline(memeTemplates[0].bottomPunchline);
+    setMemeFormat(memeTemplates[0].memeFormat);
+
+    if (script?.aiDirector?.layout === 'meme_reel') {
+      setLayoutMode('meme_reel');
+      setAspectRatio('9:16');
+    } else if (script?.ugcStoryText || script?.aiDirector?.layout === 'ugc_creator') {
       setLayoutMode('ugc_creator');
       setAspectRatio('9:16');
     }
   }, [brand.id, script?.ugcStoryText]);
+
+  const handleCycleMemeTemplate = () => {
+    const templates = getMemeTemplatesForBrand(brand, script);
+    const nextIdx = (memeIdx + 1) % templates.length;
+    const nextMeme = templates[nextIdx];
+    setMemeIdx(nextIdx);
+    setMemeTopCaption(nextMeme.topCaption);
+    setMemeBottomPunchline(nextMeme.bottomPunchline);
+    setMemeFormat(nextMeme.memeFormat);
+    setCustomUgcMediaUrl(null);
+    setSelectedUgcCreatorId(nextMeme.presetId);
+  };
+
+  const handleRemixMemeFromScript = () => {
+    const rawHook = (script?.hook || `Doing ${brand.category || 'this'} the hard way`).replace(/["']/g, '').trim();
+    const rawCta = (script?.cta || `Switch to ${brand.name} today`).replace(/["']/g, '').trim();
+    const remixedTop = `Nobody:\nWhen they're still dealing with "${rawHook.slice(0, 62)}" instead of using ${brand.name}:`;
+    const remixedBottom = `${rawCta.slice(0, 56)} 💀`;
+    setMemeTopCaption(remixedTop);
+    setMemeBottomPunchline(remixedBottom);
+    setMemeFormat('white_bar');
+    const matched = matchUgcReactionToScript(remixedTop, script?.hook);
+    setCustomUgcMediaUrl(null);
+    setSelectedUgcCreatorId(matched.presetId);
+  };
 
   const activeUgcPreset = useMemo<UgcCreatorPreset>(() => {
     if (customUgcMediaUrl) {
@@ -1762,6 +1937,7 @@ Return valid JSON matching the VideoScript schema.`;
           const { media: scMedia, img: scImg } = sceneMediaList[sIdx];
           const isUgcScene =
             layoutMode === 'ugc_creator' && (ugcSubMode === 'story_only' || sIdx === 0);
+          const isMemeScene = layoutMode === 'meme_reel';
           const hl = (scMedia as any)?.uiHighlight;
           const waypoints =
             hl?.scrollWaypoints && hl.scrollWaypoints.length >= 2
@@ -1885,6 +2061,123 @@ Return valid JSON matching the VideoScript schema.`;
                 ctx.fillText(line, width / 2, ly);
               });
               ctx.restore();
+            } else if (isMemeScene) {
+              // Render Viral 9:16 Meme Reel (Reaction Video + Top White/Dark Meme Header + Bottom Punchline Pill)
+              const activeVid =
+                ugcCreatorVideo && ugcCreatorVideo.readyState >= 2
+                  ? ugcCreatorVideo
+                  : ugcVideoRef.current && ugcVideoRef.current.readyState >= 2
+                  ? ugcVideoRef.current
+                  : null;
+
+              const headerH = memeFormat === 'impact_top_bottom' ? 0 : Math.round(height * 0.28);
+              const videoAreaY = headerH;
+              const videoAreaH = height - headerH;
+
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(0, videoAreaY, width, videoAreaH);
+              ctx.clip();
+
+              if (activeVid) {
+                const vidW = activeVid.videoWidth || 720;
+                const vidH = activeVid.videoHeight || 1280;
+                const vidRatio = vidW / Math.max(1, vidH);
+                const areaRatio = width / Math.max(1, videoAreaH);
+                let dw = width;
+                let dh = videoAreaH;
+                let dx = 0;
+                let dy = videoAreaY;
+                if (vidRatio > areaRatio) {
+                  dh = videoAreaH;
+                  dw = videoAreaH * vidRatio;
+                  dx = (width - dw) / 2;
+                } else {
+                  dw = width;
+                  dh = width / vidRatio;
+                  dy = videoAreaY + (videoAreaH - dh) / 2;
+                }
+                ctx.drawImage(activeVid, dx, dy, dw, dh);
+              } else if (ugcCreatorImg) {
+                ctx.drawImage(ugcCreatorImg, 0, videoAreaY, width, videoAreaH);
+              }
+              ctx.restore();
+
+              // Draw Top Meme Header Card (for white_bar & vs_split) or Impact Top Text
+              if (memeFormat !== 'impact_top_bottom') {
+                ctx.save();
+                ctx.fillStyle = memeCardTheme === 'light' ? '#ffffff' : '#0f172a';
+                ctx.fillRect(0, 0, width, headerH);
+                ctx.fillStyle = brand.primaryColor || '#10b981';
+                ctx.fillRect(0, headerH - 4, width, 4);
+
+                // Verified @handle pill
+                ctx.font = '800 18px system-ui, -apple-system, sans-serif';
+                ctx.fillStyle = memeCardTheme === 'light' ? '#475569' : '#94a3b8';
+                ctx.textAlign = 'left';
+                ctx.fillText(`@${(brand.slug || 'brand').replace(/-/g, '')} ✓`, 36, 48);
+
+                // Wrap memeTopCaption lines
+                ctx.font = '800 25px system-ui, -apple-system, sans-serif';
+                ctx.fillStyle = memeCardTheme === 'light' ? '#090d16' : '#f8fafc';
+                const maxLineW = width - 72;
+                const wrapped: string[] = [];
+                for (const rawLine of memeTopCaption.split('\n')) {
+                  const wordsArr = rawLine.split(/\s+/);
+                  let cur = '';
+                  for (const w of wordsArr) {
+                    const test = cur ? `${cur} ${w}` : w;
+                    if (ctx.measureText(test).width > maxLineW && cur) {
+                      wrapped.push(cur);
+                      cur = w;
+                    } else {
+                      cur = test;
+                    }
+                  }
+                  if (cur) wrapped.push(cur);
+                }
+                wrapped.slice(0, 6).forEach((ln, idx) => {
+                  ctx.fillText(ln, 36, 88 + idx * 34);
+                });
+                ctx.restore();
+              } else {
+                // Impact Top Text over video
+                ctx.save();
+                ctx.font = '900 30px system-ui, -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.lineWidth = 6;
+                ctx.strokeStyle = '#000000';
+                ctx.fillStyle = '#ffffff';
+                const lines = memeTopCaption.toUpperCase().split('\n');
+                lines.slice(0, 3).forEach((ln, idx) => {
+                  const yPos = 95 + idx * 38;
+                  ctx.strokeText(ln.slice(0, 38), width / 2, yPos);
+                  ctx.fillText(ln.slice(0, 38), width / 2, yPos);
+                });
+                ctx.restore();
+              }
+
+              // Draw Bottom Punchline Pill
+              if (memeBottomPunchline.trim()) {
+                ctx.save();
+                const pillW = width - 64;
+                const pillH = 60;
+                const pillX = 32;
+                const pillY = height - 115;
+                ctx.fillStyle = 'rgba(9, 13, 22, 0.88)';
+                ctx.beginPath();
+                ctx.roundRect(pillX, pillY, pillW, pillH, 18);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.font = '800 21px system-ui, -apple-system, sans-serif';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.fillText(memeBottomPunchline.slice(0, 48), width / 2, pillY + 38);
+                ctx.restore();
+              }
             } else {
               let curScrollYPercent = 0;
               let curX = 24;
@@ -2475,9 +2768,9 @@ Return valid JSON matching the VideoScript schema.`;
     }
   }, [isPlaying, layoutMode, selectedBackgroundId]);
 
-  // Keep the real-person UGC Creator background video playing smoothly whenever UGC Creator mode is visible
+  // Keep the real-person UGC Creator / Meme Reel background video playing smoothly whenever visible
   useEffect(() => {
-    if (layoutMode === 'ugc_creator' && ugcVideoRef.current) {
+    if ((layoutMode === 'ugc_creator' || layoutMode === 'meme_reel') && ugcVideoRef.current) {
       ugcVideoRef.current.play().catch(() => {});
     }
   }, [layoutMode, activeUgcPreset.mediaUrl, ugcSubMode, currentSceneIdx, isPlaying]);
@@ -2606,14 +2899,14 @@ Return valid JSON matching the VideoScript schema.`;
               <button
                 type="button"
                 onClick={() => setLayoutMode('dynamic_cuts')}
-                className={`px-2.5 py-1 rounded-lg font-extrabold transition-all ${
-                  layoutMode !== 'ugc_creator'
+                className={`px-2 py-1 rounded-lg font-extrabold transition-all ${
+                  layoutMode !== 'ugc_creator' && layoutMode !== 'meme_reel'
                     ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-2xs'
                     : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
                 }`}
                 title="AI Bot Scrolling & Zooming Inside-App Screen Walkthrough"
               >
-                🖥️ App Walkthrough
+                🖥️ App
               </button>
               <button
                 type="button"
@@ -2621,14 +2914,33 @@ Return valid JSON matching the VideoScript schema.`;
                   setLayoutMode('ugc_creator');
                   setAspectRatio('9:16');
                 }}
-                className={`px-2.5 py-1 rounded-lg font-extrabold transition-all ${
+                className={`px-2 py-1 rounded-lg font-extrabold transition-all ${
                   layoutMode === 'ugc_creator'
                     ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-2xs'
                     : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
                 }`}
                 title="Creator holding phone in selfie POV with centered story text overlay"
               >
-                🤳 UGC Creator
+                🤳 UGC
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLayoutMode('meme_reel');
+                  setAspectRatio('9:16');
+                  const templates = getMemeTemplatesForBrand(brand, script);
+                  const cur = templates[memeIdx % templates.length] || templates[0];
+                  setCustomUgcMediaUrl(null);
+                  setSelectedUgcCreatorId(cur.presetId);
+                }}
+                className={`px-2 py-1 rounded-lg font-extrabold transition-all ${
+                  layoutMode === 'meme_reel'
+                    ? 'bg-amber-500 text-neutral-950 shadow-2xs'
+                    : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                }`}
+                title="Viral 9:16 Meme Reel with Top Meme Banner Header + Silent Reaction Video + Bottom Punchline"
+              >
+                😂 Meme Reel
               </button>
             </div>
 
@@ -2843,6 +3155,165 @@ Return valid JSON matching the VideoScript schema.`;
             </div>
           )}
 
+          {/* Meme Reel Controls (Shown when 😂 Meme Reel mode is active) */}
+          {layoutMode === 'meme_reel' && (
+            <div className="p-2.5 rounded-2xl bg-amber-50/60 dark:bg-neutral-900 border border-amber-300/60 dark:border-amber-500/30 space-y-2 text-[10px] animate-in fade-in duration-150">
+              <div className="flex items-center justify-between gap-1 flex-wrap">
+                {/* Meme Format Selector */}
+                <div className="flex items-center gap-0.5 bg-white dark:bg-neutral-950 p-0.5 rounded-lg border border-neutral-200 dark:border-neutral-800">
+                  <button
+                    type="button"
+                    onClick={() => setMemeFormat('white_bar')}
+                    className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                      memeFormat === 'white_bar'
+                        ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
+                        : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                    }`}
+                    title="Classic IG/Twitter Top Meme Card + Reaction Video"
+                  >
+                    Card Header
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMemeFormat('vs_split')}
+                    className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                      memeFormat === 'vs_split'
+                        ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
+                        : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                    }`}
+                    title="Old Way ❌ vs. Brand Way ✅ Comparison Meme"
+                  >
+                    ❌ vs ✅
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMemeFormat('impact_top_bottom')}
+                    className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                      memeFormat === 'impact_top_bottom'
+                        ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
+                        : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                    }`}
+                    title="Full-bleed Top Setup + Bottom Punchline"
+                  >
+                    Top/Bottom
+                  </button>
+                </div>
+
+                {/* Meme Action Buttons */}
+                <div className="flex items-center gap-1">
+                  {memeFormat !== 'impact_top_bottom' && (
+                    <button
+                      type="button"
+                      onClick={() => setMemeCardTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+                      className="px-1.5 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-bold"
+                      title="Toggle Light / Dark Meme Header Card"
+                    >
+                      {memeCardTheme === 'light' ? '☀️' : '🌙'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleCycleMemeTemplate}
+                    className="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 font-extrabold flex items-center gap-1 shadow-2xs transition-colors"
+                    title="Cycle through curated viral meme templates for this brand"
+                  >
+                    <RefreshCw className="w-2.5 h-2.5" />
+                    <span>🎲 Next Meme</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemixMemeFromScript}
+                    className="px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-100 text-neutral-700 dark:text-neutral-200 font-bold flex items-center gap-1 transition-colors"
+                    title="Generate a meme caption from the current post hook & CTA"
+                  >
+                    <Sparkles className="w-2.5 h-2.5 text-amber-500" />
+                    <span>Remix</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowMemeEditorDrawer((prev) => !prev)}
+                    className="px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-100 text-neutral-700 dark:text-neutral-200 font-bold transition-colors"
+                  >
+                    {showMemeEditorDrawer ? 'Done' : '✏️ Edit'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Reaction Clip Strip for Meme Reel */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+                {UGC_CREATOR_PRESETS.map((preset) => {
+                  const isSel = !customUgcMediaUrl && selectedUgcCreatorId === preset.id;
+                  return (
+                    <button
+                      key={`meme-${preset.id}`}
+                      type="button"
+                      onClick={() => {
+                        setCustomUgcMediaUrl(null);
+                        setSelectedUgcCreatorId(preset.id);
+                      }}
+                      className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all ${
+                        isSel
+                          ? 'border-amber-500 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white font-bold shadow-2xs'
+                          : 'border-neutral-200/70 dark:border-neutral-800 bg-white/60 dark:bg-neutral-950 text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                      }`}
+                      title={`${preset.name} — ${preset.tag}`}
+                    >
+                      <img
+                        src={preset.thumbnailUrl}
+                        alt={preset.name}
+                        className="w-4 h-4 rounded-full object-cover"
+                      />
+                      <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[8.5px] font-bold">
+                        {preset.emotionBadge}
+                      </span>
+                    </button>
+                  );
+                })}
+                <label
+                  className="shrink-0 px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-100 text-neutral-700 dark:text-neutral-200 font-bold flex items-center gap-1 cursor-pointer"
+                  title="Upload your own meme clip or reaction MP4"
+                >
+                  <span>📹 Upload Clip</span>
+                  <input
+                    type="file"
+                    accept="video/*,image/*"
+                    onChange={handleUgcVideoUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {showMemeEditorDrawer && (
+                <div className="pt-1 space-y-1.5">
+                  <div>
+                    <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-0.5">
+                      Top Meme Setup Caption
+                    </label>
+                    <textarea
+                      value={memeTopCaption}
+                      onChange={(e) => setMemeTopCaption(e.target.value)}
+                      rows={3}
+                      className="w-full p-2 rounded-lg bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 text-[11px] text-neutral-900 dark:text-white font-semibold leading-snug focus:outline-none"
+                      placeholder="Nobody: / Me at 2am checking..."
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-0.5">
+                      Bottom Punchline Pill
+                    </label>
+                    <input
+                      type="text"
+                      value={memeBottomPunchline}
+                      onChange={(e) => setMemeBottomPunchline(e.target.value)}
+                      className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 text-[11px] text-neutral-900 dark:text-white font-semibold focus:outline-none"
+                      placeholder="Punchline badge text..."
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {sceneVisualNotice && (
             <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -2898,6 +3369,112 @@ Return valid JSON matching the VideoScript schema.`;
                 <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/35 pointer-events-none" />
               </div>
             )}
+
+          {/* MODE: VIRAL 9:16 MEME REEL (Top Meme Banner Card + Reaction Video + Bottom Punchline Pill) */}
+          {layoutMode === 'meme_reel' && (
+            <div className="absolute inset-0 overflow-hidden bg-neutral-950 flex flex-col">
+              {/* Top Meme Banner Card (for white_bar & vs_split) */}
+              {memeFormat !== 'impact_top_bottom' && (
+                <div
+                  className={`relative z-20 px-4 pt-9 pb-3 border-b-4 transition-colors ${
+                    memeCardTheme === 'light'
+                      ? 'bg-white text-neutral-950'
+                      : 'bg-neutral-950 text-white'
+                  }`}
+                  style={{ borderColor: brand.primaryColor || '#10b981' }}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span
+                      className={`text-[10px] font-extrabold tracking-tight flex items-center gap-1 ${
+                        memeCardTheme === 'light' ? 'text-neutral-500' : 'text-neutral-400'
+                      }`}
+                    >
+                      <span>@{(brand.slug || 'brand').replace(/-/g, '')}</span>
+                      <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-blue-500 text-white text-[8px]">
+                        ✓
+                      </span>
+                    </span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                      {activeUgcPreset.emotionBadge}
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-left">
+                    {memeTopCaption.split('\n').map((line, idx) => (
+                      <p
+                        key={idx}
+                        className={`text-[12.5px] leading-[1.28] font-extrabold tracking-tight ${
+                          memeFormat === 'vs_split' && line.includes('❌')
+                            ? 'text-red-600 dark:text-red-400'
+                            : memeFormat === 'vs_split' && line.includes('✅')
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : ''
+                        }`}
+                      >
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Reaction Clip Area */}
+              <div className="relative flex-1 w-full overflow-hidden bg-neutral-900">
+                {activeUgcPreset.type === 'video' ? (
+                  <video
+                    ref={ugcVideoRef}
+                    key={`meme-video-${activeUgcPreset.mediaUrl}`}
+                    src={activeUgcPreset.mediaUrl}
+                    playsInline
+                    muted
+                    loop
+                    autoPlay
+                    onLoadedData={(e) => {
+                      e.currentTarget.play().catch(() => {});
+                    }}
+                    onCanPlay={(e) => {
+                      e.currentTarget.play().catch(() => {});
+                    }}
+                    className={`w-full h-full object-cover transition-transform duration-1000 ${
+                      isPlaying ? 'scale-105' : 'scale-100'
+                    }`}
+                  />
+                ) : (
+                  <img
+                    key={`meme-img-${activeUgcPreset.mediaUrl}`}
+                    src={activeUgcPreset.mediaUrl}
+                    alt={activeUgcPreset.name}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+
+                {/* Impact Top Text (when memeFormat === 'impact_top_bottom') */}
+                {memeFormat === 'impact_top_bottom' && (
+                  <div className="absolute top-12 inset-x-3 z-20 text-center">
+                    <p
+                      className="text-[15px] font-black uppercase leading-tight text-white tracking-tight"
+                      style={{
+                        textShadow:
+                          '-2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 4px 10px rgba(0,0,0,0.85)'
+                      }}
+                    >
+                      {memeTopCaption}
+                    </p>
+                  </div>
+                )}
+
+                {/* Bottom Punchline Pill */}
+                {memeBottomPunchline.trim() && (
+                  <div className="absolute bottom-4 inset-x-3 z-20 flex justify-center">
+                    <div className="px-3.5 py-2 rounded-2xl bg-neutral-950/90 backdrop-blur-md border border-white/20 shadow-2xl text-center max-w-full">
+                      <p className="text-[11.5px] font-extrabold text-white leading-snug">
+                        {memeBottomPunchline}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* MODE: DYNAMIC MULTI-SCENE CUTS (Or Scenes 2+ when UGC Hook -> App Cut is active) */}
           {(layoutMode === 'dynamic_cuts' ||
@@ -3185,7 +3762,9 @@ Return valid JSON matching the VideoScript schema.`;
             {/* Compact Scene Badge & Sound / Quick Download Control */}
             <div className="flex items-center justify-between">
               <span className="px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-md text-[9px] font-bold tracking-wide text-white border border-white/10 uppercase">
-                {layoutMode === 'ugc_creator' && (ugcSubMode === 'story_only' || currentSceneIdx === 0)
+                {layoutMode === 'meme_reel'
+                  ? `😂 Meme Reel • ${brand.name}`
+                  : layoutMode === 'ugc_creator' && (ugcSubMode === 'story_only' || currentSceneIdx === 0)
                   ? `🤳 UGC Story • ${brand.name}`
                   : currentScene.title}
               </span>
@@ -3231,7 +3810,9 @@ Return valid JSON matching the VideoScript schema.`;
           </div>
 
           {/* CENTER: UGC STORY PARAGRAPH OVERLAY OR FULL KINETIC CAPTIONS */}
-          {layoutMode === 'ugc_creator' && (ugcSubMode === 'story_only' || currentSceneIdx === 0) ? (
+          {layoutMode === 'meme_reel' ? (
+            <div className="my-auto pointer-events-none" />
+          ) : layoutMode === 'ugc_creator' && (ugcSubMode === 'story_only' || currentSceneIdx === 0) ? (
             <div className="relative z-20 my-auto text-center px-3 py-2 flex flex-col items-center justify-center">
               <div
                 className="space-y-0.5 max-w-[285px] mx-auto select-text"
@@ -3292,7 +3873,7 @@ Return valid JSON matching the VideoScript schema.`;
 
           {/* BOTTOM: Compact 1-Line Rolling Caption Pill ('compact') or Empty ('off') */}
           <div className="relative z-20">
-            {captionDisplayMode === 'compact' && (
+            {captionDisplayMode === 'compact' && layoutMode !== 'meme_reel' && (
               <div className="flex justify-center">
                 <div className="px-3 py-1 rounded-full bg-black/75 backdrop-blur-md border border-white/15 shadow-lg max-w-[95%] text-center">
                   <p className="text-[11px] font-bold tracking-tight text-white truncate">

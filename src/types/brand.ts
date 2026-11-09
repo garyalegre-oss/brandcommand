@@ -176,7 +176,7 @@ export interface CarouselSlide {
 }
 
 export interface AIDirectorPlan {
-  layout: 'dynamic_cuts' | 'ugc_creator' | 'showcase' | 'split';
+  layout: 'dynamic_cuts' | 'ugc_creator' | 'meme_reel' | 'showcase' | 'split';
   backgroundId: string;
   stickerId: string;
   customStickerText?: string;
