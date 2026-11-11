@@ -70,10 +70,12 @@ export function SystemHealthAgent({
 
         if (typeof window !== 'undefined') {
           const curProvider = localStorage.getItem('brandcommand_voice_provider');
+          const curVoiceName = localStorage.getItem('brandcommand_voice_name');
           const curAuto = localStorage.getItem('brandcommand_auto_generate_voice');
-          if (curProvider !== 'google' || curAuto !== 'true') {
+          if (curProvider !== 'google' || !curVoiceName || curAuto !== 'true') {
             if (applyAutoFix) {
               localStorage.setItem('brandcommand_voice_provider', 'google');
+              localStorage.setItem('brandcommand_voice_name', 'google-cloud-standard');
               localStorage.setItem('brandcommand_auto_generate_voice', 'true');
               voiceStatus = 'auto_healed';
               voiceFixNote =

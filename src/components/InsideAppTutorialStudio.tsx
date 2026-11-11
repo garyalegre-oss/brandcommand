@@ -88,6 +88,7 @@ export function InsideAppTutorialStudio({
   const [showScreenCallouts, setShowScreenCallouts] = useState<boolean>(true);
   const [videoFormat, setVideoFormat] = useState<'16:9' | '9:16'>('16:9');
   const clipTimersRef = useRef<NodeJS.Timeout[]>([]);
+  const clipAudioRef = useRef<HTMLAudioElement | null>(null);
   const manualScreenInputRef = useRef<HTMLInputElement | null>(null);
 
   // Tutorial Synthesis State
@@ -442,15 +443,20 @@ export function InsideAppTutorialStudio({
   };
 
   // Play an interactive multi-stop vertical scroll + camera zoom + arrow + spoken coaching clip preview on a single card
-  const handlePlayStepClip = (screen: BrandAsset) => {
+  const handlePlayStepClip = async (screen: BrandAsset) => {
     clipTimersRef.current.forEach((t) => clearTimeout(t));
     clipTimersRef.current = [];
 
+    if (clipAudioRef.current) {
+      clipAudioRef.current.pause();
+      clipAudioRef.current = null;
+    }
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+
     if (playingClipId === screen.id) {
       setPlayingClipId(null);
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
       return;
     }
 
@@ -469,20 +475,32 @@ export function InsideAppTutorialStudio({
       clipTimersRef.current.push(tId);
     });
 
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      const text =
-        screen.tutorialStepSuggestion ||
-        `Click ${screen.label || 'here'} inside ${brand.name} and scroll down to explore every section.`;
-      const utt = new SpeechSynthesisUtterance(text);
-      utt.rate = 1.04;
-      utt.onend = () => setPlayingClipId((prev) => (prev === screen.id ? null : prev));
-      window.speechSynthesis.speak(utt);
-    }
+    const text =
+      screen.tutorialStepSuggestion ||
+      `Click ${screen.label || 'here'} inside ${brand.name} and scroll down to explore every section.`;
+
+    try {
+      const res = await fetch('/api/generate-voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          provider: 'google',
+          voice: 'google-cloud-standard'
+        })
+      });
+      const data = await res.json();
+      if (data.audioUrl) {
+        const audio = new Audio(data.audioUrl);
+        clipAudioRef.current = audio;
+        audio.onended = () => setPlayingClipId((prev) => (prev === screen.id ? null : prev));
+        audio.play().catch(() => {});
+      }
+    } catch {}
 
     const endTimer = setTimeout(() => {
       setPlayingClipId((prev) => (prev === screen.id ? null : prev));
-    }, waypoints.length * msPerStop + 400);
+    }, waypoints.length * msPerStop + 1200);
     clipTimersRef.current.push(endTimer);
   };
 

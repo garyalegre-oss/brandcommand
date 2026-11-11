@@ -1021,6 +1021,7 @@ export function VideoPlayerPreview({
   }, [brand.id, script]);
 
   const lastGeneratedSignatureRef = useRef<string | null>(null);
+  const voiceRequestIdRef = useRef<number>(0);
 
   useEffect(() => {
     if (script?.qaInspection) {
@@ -1034,7 +1035,13 @@ export function VideoPlayerPreview({
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     soundbedEngine.stop();
+    voiceRequestIdRef.current += 1;
+    setIsGeneratingVoice(false);
     setAudioUrl(null);
     setWordTimestamps([]);
     setCurrentSceneIdx(0);
@@ -1270,10 +1277,10 @@ Return valid JSON matching the VideoScript schema.`;
   const [showCalloutLabels, setShowCalloutLabels] = useState<boolean>(true);
   const [aiDirectorNotice, setAiDirectorNotice] = useState<string | null>(null);
 
-  // Studio Voiceover API State
+  // Studio Voiceover API State (Always defaults to Google Cloud TTS 'google-cloud-standard')
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [voiceProvider, setVoiceProvider] = useState<'google' | 'openai' | 'elevenlabs'>('google');
-  const [voiceName, setVoiceName] = useState(() => getRecommendedVoice(brand.category));
+  const [voiceName, setVoiceName] = useState<string>('google-cloud-standard');
   const [voiceApiKey, setVoiceApiKey] = useState(() => {
     if (typeof window !== 'undefined') {
       return (
@@ -1339,7 +1346,7 @@ Return valid JSON matching the VideoScript schema.`;
   const ugcVideoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Load saved voice settings from localStorage
+  // Load saved voice settings from localStorage (Locked to Google Cloud TTS as default)
   useEffect(() => {
     try {
       const savedKey =
@@ -1350,7 +1357,6 @@ Return valid JSON matching the VideoScript schema.`;
         '';
       if (savedKey) {
         setVoiceApiKey(savedKey);
-        // Pre-fill media API key with Google AI key for Gemini Imagen 3 / Veo 2 if not yet set
         const savedMediaKey = localStorage.getItem('brandcommand_media_api_key');
         if (!savedMediaKey) {
           setMediaApiKey(savedKey);
@@ -1358,6 +1364,8 @@ Return valid JSON matching the VideoScript schema.`;
       }
       setVoiceProvider('google');
       localStorage.setItem('brandcommand_voice_provider', 'google');
+      setVoiceName('google-cloud-standard');
+      localStorage.setItem('brandcommand_voice_name', 'google-cloud-standard');
       setAutoGenerateVoice(true);
       localStorage.setItem('brandcommand_auto_generate_voice', 'true');
 
@@ -2568,18 +2576,19 @@ Return valid JSON matching the VideoScript schema.`;
     }
   };
 
-  // Universal Studio Voice Generation Engine (Google Cloud Journey Neural, OpenAI, ElevenLabs)
+  // Universal Studio Voice Generation Engine (Google Cloud TTS Standard Default, Journey Neural, OpenAI, ElevenLabs)
   const triggerVoiceGeneration = async (options?: {
     customVoice?: string;
     customProvider?: 'google' | 'openai' | 'elevenlabs';
     customKey?: string;
     autoplay?: boolean;
   }): Promise<boolean> => {
+    const reqId = ++voiceRequestIdRef.current;
     setIsGeneratingVoice(true);
     setVoiceStatusMsg(null);
 
     const activeProvider = options?.customProvider || voiceProvider || 'google';
-    const activeVoice = options?.customVoice || voiceName || getRecommendedVoice(brand.category);
+    const activeVoice = options?.customVoice || voiceName || 'google-cloud-standard';
     const activeKey =
       options?.customKey ||
       voiceApiKey ||
@@ -2621,29 +2630,25 @@ Return valid JSON matching the VideoScript schema.`;
         })
       });
 
+      // Ignore stale responses if a newer script/voice request has started since this call was fired
+      if (reqId !== voiceRequestIdRef.current) {
+        return false;
+      }
+
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        // If an OAuth or Google Cloud permission issue is reported, gracefully route to browser voice
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-          setAudioUrl(null);
-          setWordTimestamps([]);
-          setVoiceStatusMsg({
-            success: true,
-            text: 'Google AI Studio key active for Gemini AI. Voice smoothly synced via Browser Audio Engine!'
-          });
-          setTimeout(() => setIsVoiceModalOpen(false), 1400);
-          return true;
-        }
-
         setVoiceStatusMsg({
           success: false,
           text: errJson.message || 'Failed to generate voice. Verify your Google Cloud key.'
         });
-        setIsVoiceModalOpen(true);
         return false;
       }
 
       const data = await res.json();
+
+      if (reqId !== voiceRequestIdRef.current) {
+        return false;
+      }
 
       if (data.fallbackToWebSpeech) {
         setAudioUrl(null);
@@ -2691,24 +2696,29 @@ Return valid JSON matching the VideoScript schema.`;
 
       setVoiceStatusMsg({
         success: true,
-        text: 'Studio-quality voice generated! Ready for playback.'
+        text: 'Google Cloud TTS audio generated! Ready for playback.'
       });
       setTimeout(() => setIsVoiceModalOpen(false), 1200);
 
       if (options?.autoplay) {
         setTimeout(() => {
           if (audioRef.current) {
+            audioRef.current.muted = isMuted;
             audioRef.current.play().catch(() => {});
           }
-        }, 200);
+        }, 120);
       }
       return true;
     } catch (err: unknown) {
-      const error = err as Error;
-      setVoiceStatusMsg({ success: false, text: error.message || 'Network error occurred.' });
+      if (reqId === voiceRequestIdRef.current) {
+        const error = err as Error;
+        setVoiceStatusMsg({ success: false, text: error.message || 'Network error occurred.' });
+      }
       return false;
     } finally {
-      setIsGeneratingVoice(false);
+      if (reqId === voiceRequestIdRef.current) {
+        setIsGeneratingVoice(false);
+      }
     }
   };
 
@@ -2717,7 +2727,7 @@ Return valid JSON matching the VideoScript schema.`;
     await triggerVoiceGeneration();
   };
 
-  // Automatically synthesize Google Cloud Journey voice when a new script or brand is loaded
+  // Automatically synthesize Google Cloud TTS voice when a new script or brand is loaded
   useEffect(() => {
     const effectiveKey =
       voiceApiKey ||
@@ -2736,7 +2746,6 @@ Return valid JSON matching the VideoScript schema.`;
     if (
       autoGenerateVoice &&
       !audioUrl &&
-      !isGeneratingVoice &&
       scenes.length > 0 &&
       scriptSignature &&
       lastGeneratedSignatureRef.current !== scriptSignature
@@ -2744,7 +2753,7 @@ Return valid JSON matching the VideoScript schema.`;
       lastGeneratedSignatureRef.current = scriptSignature;
       triggerVoiceGeneration({ customKey: effectiveKey });
     }
-  }, [scriptSignature, brand.id, voiceApiKey, autoGenerateVoice, audioUrl, isGeneratingVoice, scenes.length]);
+  }, [scriptSignature, brand.id, voiceApiKey, autoGenerateVoice, audioUrl, scenes.length]);
 
   // Synchronize audio clock with frame-accurate word highlighting
   const handleAudioTimeUpdate = () => {
@@ -2803,7 +2812,7 @@ Return valid JSON matching the VideoScript schema.`;
 
   // Master Autonomous Playback Clock: Ensures the video timeline NEVER freezes
   useEffect(() => {
-    if (!isPlaying || audioUrl) return;
+    if (!isPlaying || audioUrl || isGeneratingVoice) return;
 
     const intervalMs = 50; // 20 FPS high-smoothness ticker
     const deltaSec = intervalMs / 1000;
@@ -2834,7 +2843,6 @@ Return valid JSON matching the VideoScript schema.`;
       if (resolvedIdx !== currentSceneIdxRef.current) {
         currentSceneIdxRef.current = resolvedIdx;
         setCurrentSceneIdx(resolvedIdx);
-        speakCurrentScene(resolvedIdx);
       }
 
       // Word highlighting progress in current scene
@@ -2847,7 +2855,7 @@ Return valid JSON matching the VideoScript schema.`;
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [isPlaying, audioUrl, totalDuration, sceneDurations, sceneTimeBoundaries]);
+  }, [isPlaying, audioUrl, isGeneratingVoice, totalDuration, sceneDurations, sceneTimeBoundaries]);
 
   // Automatically start playing Google Cloud TTS audio as soon as it finishes synthesizing if playback is active
   useEffect(() => {
@@ -2862,9 +2870,12 @@ Return valid JSON matching the VideoScript schema.`;
     }
   }, [audioUrl, isPlaying, isMuted]);
 
-  // Play / Pause toggle (Always uses Google Cloud TTS standard voice first)
+  // Play / Pause toggle (Always uses Google Cloud TTS standard voice)
   const togglePlay = async () => {
     if (!isPlaying) {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
       setIsPlaying(true);
       if (brollVideoRef.current) {
         brollVideoRef.current.play().catch(() => {});
@@ -2877,12 +2888,8 @@ Return valid JSON matching the VideoScript schema.`;
       if (audioUrl && audioRef.current) {
         audioRef.current.muted = isMuted;
         audioRef.current.play().catch(() => {});
-      } else if (!isGeneratingVoice) {
-        const ok = await triggerVoiceGeneration({ autoplay: true });
-        if (!ok) {
-          currentTimeRef.current = (progress / 100) * totalDuration;
-          speakCurrentScene(currentSceneIdxRef.current);
-        }
+      } else {
+        await triggerVoiceGeneration({ autoplay: true });
       }
     } else {
       setIsPlaying(false);
@@ -2895,13 +2902,9 @@ Return valid JSON matching the VideoScript schema.`;
     }
   };
 
-  const handleRestart = () => {
+  const handleRestart = async () => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
-    }
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
     }
     if (brollVideoRef.current) {
       brollVideoRef.current.currentTime = 0;
@@ -2913,16 +2916,20 @@ Return valid JSON matching the VideoScript schema.`;
     setProgress(0);
     setActiveWordIdx(0);
     setIsPlaying(true);
-    if (!audioUrl) {
-      speakCurrentScene(0);
-    }
     if (selectedSoundtrack !== 'none' && !isMuted) {
       soundbedEngine.play(selectedSoundtrack);
       soundbedEngine.setVolume(soundtrackVolume);
     }
+    if (audioUrl && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.muted = isMuted;
+      audioRef.current.play().catch(() => {});
+    } else {
+      await triggerVoiceGeneration({ autoplay: true });
+    }
   };
 
-  const jumpToScene = (idx: number) => {
+  const jumpToScene = async (idx: number) => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
@@ -2934,13 +2941,16 @@ Return valid JSON matching the VideoScript schema.`;
     setProgress(targetFraction * 100);
     currentTimeRef.current = idx === 0 ? 0 : (sceneTimeBoundaries[idx - 1] || 0) + 0.05;
 
-    if (audioRef.current && audioRef.current.duration) {
-      audioRef.current.currentTime = targetFraction * audioRef.current.duration;
+    if (audioUrl && audioRef.current) {
+      if (audioRef.current.duration && !Number.isNaN(audioRef.current.duration)) {
+        audioRef.current.currentTime = targetFraction * audioRef.current.duration;
+      }
       if (isPlaying) {
+        audioRef.current.muted = isMuted;
         audioRef.current.play().catch(() => {});
       }
     } else if (isPlaying) {
-      speakCurrentScene(idx);
+      await triggerVoiceGeneration({ autoplay: true });
     }
   };
 
@@ -3054,24 +3064,23 @@ Return valid JSON matching the VideoScript schema.`;
 
   return (
     <div className="w-full flex flex-col lg:flex-row items-center lg:items-start justify-center gap-6 max-w-6xl mx-auto">
-      {/* Hidden Studio Audio Player */}
-      {audioUrl && (
-        <audio
-          ref={audioRef}
-          src={audioUrl}
-          onTimeUpdate={handleAudioTimeUpdate}
-          onEnded={() => {
-            setIsPlaying(false);
-            setProgress(100);
+      {/* Always-mounted Studio Audio Player (Ensures browser user-gesture unlock & zero fallback) */}
+      <audio
+        ref={audioRef}
+        src={audioUrl || undefined}
+        preload="auto"
+        onTimeUpdate={handleAudioTimeUpdate}
+        onEnded={() => {
+          setIsPlaying(false);
+          setProgress(100);
+          soundbedEngine.stop();
+        }}
+        onPause={() => {
+          if (!isTestingSoundtrack) {
             soundbedEngine.stop();
-          }}
-          onPause={() => {
-            if (!isTestingSoundtrack) {
-              soundbedEngine.stop();
-            }
-          }}
-        />
-      )}
+          }
+        }}
+      />
 
       {/* LEFT COLUMN: 16:9 YouTube Widescreen OR 9:16 Vertical Phone Canvas Simulator */}
       <div className="flex flex-col items-center flex-shrink-0 w-full lg:w-auto mx-auto">
@@ -4143,8 +4152,11 @@ Return valid JSON matching the VideoScript schema.`;
                         soundbedEngine.play(selectedSoundtrack);
                         soundbedEngine.setVolume(soundtrackVolume);
                       }
-                      if (isPlaying && !audioUrl) {
-                        speakCurrentScene(currentSceneIdx);
+                      if (isPlaying && audioUrl && audioRef.current) {
+                        audioRef.current.muted = false;
+                        audioRef.current.play().catch(() => {});
+                      } else if (isPlaying && !audioUrl) {
+                        triggerVoiceGeneration({ autoplay: true });
                       }
                     }
                   }}
@@ -5730,19 +5742,49 @@ Return valid JSON matching the VideoScript schema.`;
                   <div>
                     <div className="flex items-center gap-1.5">
                       <h4 className="text-xs font-bold text-neutral-900 dark:text-neutral-100">
-                        Voiceover Engine: Google Cloud (Default)
+                        Voiceover Engine: ☁️ Google Cloud TTS (Default)
                       </h4>
                       <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        Free Tier
+                        Standard Default
                       </span>
                     </div>
                     <p className="text-[10px] text-neutral-400">
-                      Auto-selected persona for {brand.name}: <span className="font-semibold text-neutral-300">{voiceName}</span>
+                      Locked default voice for {brand.name}: <span className="font-semibold text-emerald-500">☁️ Google Cloud TTS ({voiceName})</span>
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <select
+                    value={voiceName}
+                    disabled={isGeneratingVoice}
+                    onChange={async (e) => {
+                      const nextVoice = e.target.value;
+                      setVoiceName(nextVoice);
+                      try {
+                        localStorage.setItem('brandcommand_voice_name', nextVoice);
+                      } catch {}
+                      setAudioUrl(null);
+                      await triggerVoiceGeneration({
+                        customVoice: nextVoice,
+                        autoplay: isPlaying
+                      });
+                    }}
+                    className="px-2.5 py-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 font-bold text-xs cursor-pointer"
+                  >
+                    <option value="google-cloud-standard">☁️ Google Cloud TTS (Default)</option>
+                    <option value="en-GB-Google-Cloud">☁️ Google Cloud TTS (UK)</option>
+                    <option value="en-AU-Google-Cloud">☁️ Google Cloud TTS (AU)</option>
+                    <option value="es-US-Google-Cloud">☁️ Google Cloud TTS (ES)</option>
+                    <option value="en-US-Journey-F">🎙️ Jessie (Viral F)</option>
+                    <option value="en-US-Journey-D">🎙️ Marcus (Deep M)</option>
+                    <option value="en-US-Neural2-D">🎙️ Liam (Creator M)</option>
+                    <option value="en-US-Journey-O">🎙️ Chloe (Warm F)</option>
+                    <option value="en-US-Studio-Q">🎙️ Broadcast (Auth M)</option>
+                    <option value="en-US-Studio-O">🎙️ Oliver (UK Studio)</option>
+                    <option value="es-US-Journey-F">🎙️ Sofia (Español)</option>
+                  </select>
+
                   <button
                     onClick={() => triggerVoiceGeneration()}
                     disabled={isGeneratingVoice}
@@ -5796,7 +5838,7 @@ Return valid JSON matching the VideoScript schema.`;
                     }}
                     className="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"
                   />
-                  <span>Automatically synthesize Google voice for new video scripts</span>
+                  <span>Automatically synthesize Google Cloud TTS voice for new video scripts</span>
                 </label>
 
                 {audioUrl && (
@@ -5814,11 +5856,11 @@ Return valid JSON matching the VideoScript schema.`;
                 <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs flex items-center justify-between">
                   <span className="flex items-center gap-1.5 font-semibold">
                     <Check className="w-4 h-4 text-emerald-500" />
-                    Speech Audio Ready & Synchronized
+                    Google Cloud TTS Audio Ready & Synchronized
                   </span>
-                  <span className="text-[10px] font-mono capitalize">
+                  <span className="text-[10px] font-mono">
                     {voiceProvider === 'google'
-                      ? `Google Journey (${voiceName})`
+                      ? `☁️ Google Cloud TTS (${voiceName})`
                       : voiceProvider === 'elevenlabs'
                       ? 'ElevenLabs Neural'
                       : 'OpenAI TTS'}
@@ -5827,17 +5869,9 @@ Return valid JSON matching the VideoScript schema.`;
               ) : (
                 <div className="p-2.5 rounded-xl bg-neutral-100 dark:bg-neutral-800/60 text-neutral-500 text-[11px] flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-amber-500 font-bold">●</span>
-                    <span>Google Journey Speech is selected as your default.</span>
+                    <span className="text-emerald-500 font-bold">●</span>
+                    <span>☁️ Google Cloud TTS is locked as your default voice.</span>
                   </div>
-                  {!voiceApiKey && (
-                    <button
-                      onClick={() => setIsVoiceModalOpen(true)}
-                      className="text-purple-500 hover:underline font-bold text-[10px]"
-                    >
-                      Paste Key Once
-                    </button>
-                  )}
                 </div>
               )}
             </div>

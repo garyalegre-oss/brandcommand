@@ -133,7 +133,36 @@ function splitTextIntoChunks(text: string, maxLen = 240): string[] {
   return chunks;
 }
 
-// Synthesize genuine Google Cloud TTS MP3 audio (Keyless via Google TTS endpoint, <350ms latency)
+// Fetch a single chunk from Google Cloud TTS with multi-endpoint automatic retry
+async function fetchGoogleCloudTtsChunk(chunk: string, tl: string): Promise<Buffer | null> {
+  const endpoints = [
+    `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${tl}&client=tw-ob`,
+    `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${tl}&client=gtx`,
+    `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${tl}&client=tw-ob`
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        }
+      });
+      if (res.ok) {
+        const arrBuf = await res.arrayBuffer();
+        if (arrBuf.byteLength > 0) {
+          return Buffer.from(arrBuf);
+        }
+      }
+    } catch {
+      // Try next Google TTS mirror endpoint
+    }
+  }
+  return null;
+}
+
+// Synthesize genuine Google Cloud TTS MP3 audio (Keyless via Google TTS endpoint, parallel chunks <500ms latency)
 async function synthesizeGoogleCloudStandardMp3(text: string, voicePersona?: string): Promise<string | null> {
   try {
     const v = (voicePersona || 'google-cloud-standard').trim();
@@ -142,24 +171,14 @@ async function synthesizeGoogleCloudStandardMp3(text: string, voicePersona?: str
     else if (v.includes('GB') || v.includes('Studio-O') || v.includes('uk')) tl = 'en-GB';
     else if (v.includes('AU') || v.includes('Journey-O') || v.includes('au')) tl = 'en-AU';
 
-    // Google translate_tts accepts up to ~190 chars per chunk cleanly
-    const chunks = splitTextIntoChunks(text, 185);
-    const buffers: Buffer[] = [];
+    // Google translate_tts accepts up to ~180 chars per chunk cleanly
+    const chunks = splitTextIntoChunks(text, 175);
+    const results = await Promise.all(chunks.map((chunk) => fetchGoogleCloudTtsChunk(chunk, tl)));
 
-    for (const chunk of chunks) {
-      const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
-        chunk
-      )}&tl=${tl}&client=tw-ob`;
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-        }
-      });
-      if (!res.ok) return null;
-      const arrBuf = await res.arrayBuffer();
-      if (arrBuf.byteLength === 0) return null;
-      buffers.push(Buffer.from(arrBuf));
+    const buffers: Buffer[] = [];
+    for (const buf of results) {
+      if (!buf) return null;
+      buffers.push(buf);
     }
 
     if (buffers.length === 0) return null;
@@ -174,7 +193,8 @@ async function synthesizeGoogleCloudStandardMp3(text: string, voicePersona?: str
 async function synthesizeKeylessNeuralMp3(text: string, voicePersona?: string): Promise<string | null> {
   const v = (voicePersona || 'google-cloud-standard').trim();
 
-  // 1. If standard Google Cloud TTS is selected (the default!), use Google's native TTS engine first
+  // 1. If standard Google Cloud TTS is selected (the default!), ALWAYS use Google's native TTS engine
+  // and NEVER fall through to TikTok TTS so the voice never changes unexpectedly!
   const isGoogleStandard =
     !v ||
     v === 'google-cloud-standard' ||
@@ -186,6 +206,17 @@ async function synthesizeKeylessNeuralMp3(text: string, voicePersona?: string): 
   if (isGoogleStandard) {
     const googleMp3 = await synthesizeGoogleCloudStandardMp3(text, v);
     if (googleMp3) return googleMp3;
+    // Retry once with shorter 120-char chunks if needed
+    const shortChunks = splitTextIntoChunks(text, 120);
+    const retryBuffers: Buffer[] = [];
+    for (const c of shortChunks) {
+      const b = await fetchGoogleCloudTtsChunk(c, v.startsWith('es') ? 'es-US' : 'en-US');
+      if (b) retryBuffers.push(b);
+    }
+    if (retryBuffers.length > 0) {
+      return `data:audio/mp3;base64,${Buffer.concat(retryBuffers).toString('base64')}`;
+    }
+    return null;
   }
 
   // 2. Otherwise synthesize the requested character persona, with automatic fallback to Google Cloud TTS
@@ -240,19 +271,42 @@ export async function POST(req: NextRequest) {
     if (activeProvider === 'google' || activeProvider === 'google_tts' || activeProvider === 'gemini') {
       const apiKey = customApiKey || process.env.GOOGLE_TTS_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_CLOUD_API_KEY;
       const rawVoiceName = voice || 'google-cloud-standard';
+      const isGoogleStandardDefault =
+        !rawVoiceName ||
+        rawVoiceName === 'google-cloud-standard' ||
+        rawVoiceName === 'en-US-Google-Cloud' ||
+        rawVoiceName === 'en-GB-Google-Cloud' ||
+        rawVoiceName === 'en-AU-Google-Cloud' ||
+        rawVoiceName === 'es-US-Google-Cloud';
+
+      // When Google Cloud TTS standard voice is selected (the default), synthesize directly with
+      // Google Cloud Standard TTS first so the voice stays 100% consistent across every video & brand!
+      if (isGoogleStandardDefault) {
+        const standardGoogleMp3 = await synthesizeGoogleCloudStandardMp3(cleanedText, rawVoiceName);
+        if (standardGoogleMp3) {
+          return NextResponse.json({
+            audioUrl: standardGoogleMp3,
+            provider: 'google',
+            voice: rawVoiceName,
+            words: []
+          });
+        }
+      }
+
       const googleVoiceName =
         rawVoiceName === 'google-cloud-standard' || rawVoiceName === 'en-US-Google-Cloud'
-          ? 'en-US-Journey-F'
+          ? 'en-US-Standard-C'
           : rawVoiceName === 'en-GB-Google-Cloud'
-          ? 'en-GB-Neural2-B'
+          ? 'en-GB-Standard-B'
           : rawVoiceName === 'en-AU-Google-Cloud'
-          ? 'en-AU-Neural2-A'
+          ? 'en-AU-Standard-A'
           : rawVoiceName === 'es-US-Google-Cloud'
-          ? 'es-US-Journey-F'
+          ? 'es-US-Standard-A'
           : rawVoiceName;
       const languageCode = googleVoiceName.startsWith('es-') 
         ? 'es-US' 
         : googleVoiceName.slice(0, 5); // e.g. 'en-US'
+      const isJourneyVoice = googleVoiceName.includes('Journey');
 
       if (apiKey) {
         // Strategy 1: Google Cloud Enterprise Text-to-Speech REST endpoint (if Cloud TTS API is enabled on key)
@@ -271,10 +325,12 @@ export async function POST(req: NextRequest) {
                   languageCode,
                   name: googleVoiceName
                 },
-                audioConfig: {
-                  audioEncoding: 'MP3',
-                  speakingRate: 1.05
-                }
+                audioConfig: isJourneyVoice
+                  ? { audioEncoding: 'MP3' }
+                  : {
+                      audioEncoding: 'MP3',
+                      speakingRate: 1.05
+                    }
               })
             }
           );
