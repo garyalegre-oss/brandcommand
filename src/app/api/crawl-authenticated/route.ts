@@ -48,7 +48,7 @@ function findLocalBrowserExecutable(): string | undefined {
   ];
   for (const p of candidates) {
     try {
-      if (fs.existsSync(p)) return p;
+      if (fs.existsSync(/*turbopackIgnore: true*/ p)) return p;
     } catch {}
   }
   return undefined;

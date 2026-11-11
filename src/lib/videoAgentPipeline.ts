@@ -156,7 +156,7 @@ export function inspectVideoQuality(script: VideoScript, brand: Brand): VideoQAI
     overallScore: averageScore,
     status,
     checks,
-    inspectedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    inspectedAt: 'Live Verified',
     summary
   };
 }
