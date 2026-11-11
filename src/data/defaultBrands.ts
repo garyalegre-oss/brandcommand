@@ -247,6 +247,55 @@ export const DEFAULT_BRANDS: Brand[] = [
     tagline: 'Scout real football players, trade player shares with play-money credits, and build your fantasy XI.',
     category: 'gaming',
     websiteUrl: 'https://varbona.com',
+    websiteScreenshotUrl: 'https://iad.microlink.io/AaPvcvMN7HITD6LobOa-aF_FN7_7WC5X-34vXizM5VfTQxfnBhzwnaLmH9brUdizQIy0lqs7U_7m7iCVNiq-Lw.png',
+    websiteMobileScreenshotUrl: 'https://iad.microlink.io/AaPvcvMN7HITD6LobOa-aF_FN7_7WC5X-34vXizM5VfTQxfnBhzwnaLmH9brUdizQIy0lqs7U_7m7iCVNiq-Lw.png',
+    websiteDesktopScreenshotUrl: 'https://iad.microlink.io/ACYs_juUhBXUJ9l5A9catynz8EitEHRayqN4IZOuUK_wLQUGKoh_hLCLE0dbzw-h3nC4xF1IVUWYbYSuXCj7Jg.png',
+    brandAssets: [
+      {
+        id: 'varbona_mobile_app_screenshot',
+        name: '📱 Varbona Mobile App View (9:16 Pitch & Player Market)',
+        type: 'screenshot',
+        viewport: 'mobile',
+        url: 'https://iad.microlink.io/AaPvcvMN7HITD6LobOa-aF_FN7_7WC5X-34vXizM5VfTQxfnBhzwnaLmH9brUdizQIy0lqs7U_7m7iCVNiq-Lw.png',
+        label: '📱 Varbona Mobile Pitch & Market (9:16)',
+        routePath: '/',
+        uiSummary: 'Varbona Football Portfolio & Lamine Yamal 125.00 CR (+4.2%) Player Market Card',
+        tutorialStepSuggestion: 'First, open the Varbona Player Market to scout breakout stars like Lamine Yamal at 125 credits per share and track their live 1-month price movement.'
+      },
+      {
+        id: 'varbona_desktop_screenshot',
+        name: '💻 Varbona Desktop View (16:9 Football Portfolio & Pitch)',
+        type: 'screenshot',
+        viewport: 'desktop',
+        url: 'https://iad.microlink.io/ACYs_juUhBXUJ9l5A9catynz8EitEHRayqN4IZOuUK_wLQUGKoh_hLCLE0dbzw-h3nC4xF1IVUWYbYSuXCj7Jg.png',
+        label: '💻 Varbona Football Portfolio (16:9)',
+        routePath: '/',
+        uiSummary: 'Build your football portfolio: 01 Scout, 02 Build XI, 03 Compete + Free Play-Money Beta signup',
+        tutorialStepSuggestion: 'Next, buy at least one share of any player to unlock them for your owned Fantasy XI pitch lineup.'
+      },
+      {
+        id: 'varbona_players_market_screenshot',
+        name: '⚽ Varbona Player Market & Wonderkid Scouting (/players)',
+        type: 'screenshot',
+        viewport: 'desktop',
+        url: 'https://iad.microlink.io/bRkUPVWQyVPJJwGvlkZlpasMcW-r7YNaGlIJsdyB8_HHbz9fnRweBDa2ykbfWTqu5Xe8tf3VyeghO2ES-OcWPQ.png',
+        label: '⚽ Player Market Board (/players)',
+        routePath: '/players',
+        uiSummary: 'Live football player market catalog with position filters, share prices in CR, and form trends',
+        tutorialStepSuggestion: 'Filter the Player Market by forwards, midfielders, and defenders to spot undervalued wonderkids before matchday.'
+      },
+      {
+        id: 'varbona_how_it_works_screenshot',
+        name: '📊 How Varbona Works: Scout • Build XI • Compete (/how-it-works)',
+        type: 'screenshot',
+        viewport: 'desktop',
+        url: 'https://iad.microlink.io/tOSwxMxH3CGWW-cs4kVyybqE8cpSg-XrmZ3FOWYlT9EMiEE3LnyNDPxPBziO8i2Nwt2EW_U_2zvZRkNwipTvUA.png',
+        label: '📊 How Varbona Works (/how-it-works)',
+        routePath: '/how-it-works',
+        uiSummary: 'Step-by-step breakdown of Varbona play-money credits, player share trading, and fantasy XI scoring',
+        tutorialStepSuggestion: 'Finally, lock in your 11 owned players before kickoff and compete on the leaderboard while your play-money portfolio carries over after beta.'
+      }
+    ],
     logoUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="26" fill="%230f172a"/><text x="50" y="67" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="52" fill="%23b9f566" text-anchor="middle">V</text></svg>',
     typography: 'Plus Jakarta Sans',
     primaryColor: '#b9f566', // Pitch Lime

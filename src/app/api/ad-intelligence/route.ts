@@ -218,75 +218,163 @@ Return a JSON object with a "variants" array containing 3 objects matching this 
       }
     }
 
-    // Fallback 3 A/B Variants
-    const fallbackVariants: AdVariantOption[] = [
-      {
-        id: 'variant-a',
-        angleName: 'Variant A: Pain-Point Hook',
-        angleBadge: '🔥 Pain-Point Angle',
-        badgeText: `${brandName.toUpperCase()} SPOTLIGHT`,
-        headline: cleanTopic.length <= 58 ? cleanTopic : `Stop Guessing. Start Winning With ${brandName}.`,
-        subheadline: brandTagline || `Eliminate blind spots with ${brandName}'s precision workflow.`,
-        ctaText: `Explore ${brandName} →`,
-        caption: `Still doing things the hard way?\n\n${cleanTopic}\n\nWith ${brandName}, you get:\n✅ ${brandTagline}\n✅ Built for real-world clarity and speed\n\n💬 Comment "${defaultKeyword}" and we'll DM you the direct link!\n\n${tagStr}`,
-        visualPrompt: `Dramatic split-lighting commercial photography representing "${cleanTopic}" for ${brandName}, sleek modern hardware and glass interface aesthetics, ultra-sharp 8k, no text.`,
-        firstCommentPlug: `🔗 Skip the wait — check out ${brandName} directly at ${cleanUrl}`,
-        dmTriggerKeyword: defaultKeyword,
-        dmAutoReplyScript: `Hey! Here is your direct access link to ${brandName}: ${cleanUrl} — reply here if you have any questions!`,
-        conversionScore: {
-          overall: 94,
-          thumbStop: 96,
-          contrast: 93,
-          ctaClarity: 94,
-          brandAlignment: 93,
-          reasoning: 'High thumb-stop power due to direct problem callout in the first 5 words.'
-        }
-      },
-      {
-        id: 'variant-b',
-        angleName: 'Variant B: Authority & Proof',
-        angleBadge: '📊 Authority Angle',
-        badgeText: 'EVIDENCE-FIRST SYSTEM',
-        headline: `Why Smart Builders & Pros Trust ${brandName}`,
-        subheadline: `${cleanTopic} — engineered for measurable outcomes and zero fluff.`,
-        ctaText: `See How It Works →`,
-        caption: `Data beats hype every single time.\n\nHere is why disciplined users are switching to ${brandName}:\n1️⃣ ${cleanTopic}\n2️⃣ ${brandTagline}\n3️⃣ 100% transparent tracking\n\n💬 Drop "${defaultKeyword}" in the comments for the full walkthrough!\n\n${tagStr}`,
-        visualPrompt: `Executive dark-mode analytics studio showcase for ${brandName} (${cleanTopic}), glowing emerald and sapphire data reflections on polished obsidian surface, 8k commercial photography, no text.`,
-        firstCommentPlug: `📊 Dive into the live ${brandName} platform here: ${cleanUrl}`,
-        dmTriggerKeyword: defaultKeyword,
-        dmAutoReplyScript: `Thanks for commenting "${defaultKeyword}"! Here's the full ${brandName} breakdown and live tool: ${cleanUrl}`,
-        conversionScore: {
-          overall: 91,
-          thumbStop: 89,
-          contrast: 94,
-          ctaClarity: 92,
-          brandAlignment: 95,
-          reasoning: 'Strongest brand authority alignment for skeptical, analytical buyers.'
-        }
-      },
-      {
-        id: 'variant-c',
-        angleName: 'Variant C: Direct Action / FOMO',
-        angleBadge: '⚡ Urgency Angle',
-        badgeText: 'NEW RELEASE LIVE',
-        headline: `Your Unfair Advantage Is Live on ${brandName}`,
-        subheadline: `Experience ${cleanTopic.toLowerCase()} in under 60 seconds.`,
-        ctaText: `Claim Free Access →`,
-        caption: `Don't get left behind using yesterday's playbook. ⚡\n\n${brandName} just made "${cleanTopic}" effortless.\n\n💬 Comment "${defaultKeyword}" right now and I'll send the direct link to your DMs!\n\n${tagStr}`,
-        visualPrompt: `High-energy futuristic product launch hero visual for ${brandName}, volumetric neon rim lighting, dynamic perspective, crisp luxury studio photography, no text.`,
-        firstCommentPlug: `🚀 Instant access to ${brandName} is live right now: ${cleanUrl}`,
-        dmTriggerKeyword: defaultKeyword,
-        dmAutoReplyScript: `You're in! ⚡ Here is your instant link to ${brandName}: ${cleanUrl}`,
-        conversionScore: {
-          overall: 92,
-          thumbStop: 94,
-          contrast: 91,
-          ctaClarity: 96,
-          brandAlignment: 89,
-          reasoning: 'Highest CTA click-through rate for fast-scrolling Instagram & X feeds.'
-        }
-      }
-    ];
+    // Fallback 3 A/B Variants (Brand-Aware)
+    const isVarbonaBrand =
+      brandName.toLowerCase().includes('varbona') ||
+      brandName.toLowerCase().includes('varvona') ||
+      cleanUrl.toLowerCase().includes('varbona');
+
+    const fallbackVariants: AdVariantOption[] = isVarbonaBrand
+      ? [
+          {
+            id: 'variant-a',
+            angleName: 'Option A: Old Fantasy vs. Varbona Market',
+            angleBadge: '🔥 Comparison Hook',
+            badgeText: '⚽ OLD FANTASY VS. VARBONA',
+            headline: 'Traditional Fantasy Locks You Out. Trade Player Shares Live.',
+            subheadline:
+              'Scout real football players with play-money credits — 1 share unlocks your owned Fantasy XI.',
+            ctaText: 'Join Free Varbona Beta →',
+            caption: `Why play static fantasy leagues when you can trade the live football market? ⚽📈\n\nOn Varbona, you scout breakout stars like Lamine Yamal, trade player shares with play-money credits, and field the players you own.\n\n💬 Comment "SCOUT" and we'll DM you direct beta access!\n\n${tagStr}`,
+            visualPrompt:
+              'Split screen football stadium vs glowing Pitch Lime #b9f566 player stock market chart and tactical pitch XI',
+            firstCommentPlug: `⚽ Join the free Varbona Play-Money Beta here (portfolio carries over!) 👉 ${cleanUrl}`,
+            dmTriggerKeyword: 'SCOUT',
+            dmAutoReplyScript: `Hey! ⚽ Here is your direct invite to build your football portfolio on Varbona: ${cleanUrl}`,
+            bgImageUrl:
+              'https://iad.microlink.io/ACYs_juUhBXUJ9l5A9catynz8EitEHRayqN4IZOuUK_wLQUGKoh_hLCLE0dbzw-h3nC4xF1IVUWYbYSuXCj7Jg.png',
+            conversionScore: {
+              overall: 96,
+              thumbStop: 97,
+              contrast: 95,
+              ctaClarity: 96,
+              brandAlignment: 97,
+              reasoning: 'Directly contrasts static FPL frustration against Varbona’s live player share trading.'
+            }
+          },
+          {
+            id: 'variant-b',
+            angleName: 'Option B: Wonderkid Scouting & Share Price Proof',
+            angleBadge: '📈 Market Proof Angle',
+            badgeText: '📈 LAMINE YAMAL • 125.00 CR (+4.2%)',
+            headline: 'Back Your Football Instincts Before Matchday.',
+            subheadline:
+              'Spot undervalued wonderkids early, watch their share value climb, and dominate the pitch.',
+            ctaText: 'Scout Players on Varbona →',
+            caption: `You called that breakout winger 3 weeks before the pundits did. Now prove it on the market. ⚽📊\n\nScout real players, trade play-money shares, and build your owned XI on Varbona.\n\n💬 Comment "XI" for the live Player Market link!\n\n${tagStr}`,
+            visualPrompt:
+              'Holographic football player scouting card showing +4.2% share price sparkline over dark stadium turf',
+            firstCommentPlug: `📊 Browse the live Varbona Player Market here 👉 ${cleanUrl}/players`,
+            dmTriggerKeyword: 'XI',
+            dmAutoReplyScript: `Ready to scout? Here is the live Varbona Player Market: ${cleanUrl}/players`,
+            bgImageUrl:
+              'https://iad.microlink.io/bRkUPVWQyVPJJwGvlkZlpasMcW-r7YNaGlIJsdyB8_HHbz9fnRweBDa2ykbfWTqu5Xe8tf3VyeghO2ES-OcWPQ.png',
+            conversionScore: {
+              overall: 95,
+              thumbStop: 96,
+              contrast: 94,
+              ctaClarity: 95,
+              brandAlignment: 96,
+              reasoning:
+                'Leads with concrete player market numbers (125.00 CR +4.2%) that immediately hook football fans.'
+            }
+          },
+          {
+            id: 'variant-c',
+            angleName: 'Option C: Free Play-Money Beta Offer',
+            angleBadge: '⚡ Early Access Beta',
+            badgeText: '⚡ FREE PLAY-MONEY BETA • PROGRESS CARRIES OVER',
+            headline: 'Build Your First Football Portfolio Free.',
+            subheadline:
+              '01 Scout • 02 Build Your Owned XI • 03 Compete. Zero purchase required.',
+            ctaText: 'Claim Your Free Squad →',
+            caption: `The Varbona Play-Money Beta is live! ⚽🔥\n\n✅ Free to join (no deposit required)\n✅ Trade real football player shares\n✅ Your portfolio & progress carry over after beta!\n\n💬 Comment "BETA" to claim your squad at ${cleanUrl}\n\n${tagStr}`,
+            visualPrompt:
+              'Sleek dark stadium tunnel with glowing neon lime football pitch formation and beta access badge',
+            firstCommentPlug: `🚀 Lock in your Varbona Beta account (progress carries over!) 👉 ${cleanUrl}`,
+            dmTriggerKeyword: 'BETA',
+            dmAutoReplyScript: `You're in! ⚡ Create your free Varbona Beta portfolio here: ${cleanUrl}`,
+            bgImageUrl:
+              'https://iad.microlink.io/AaPvcvMN7HITD6LobOa-aF_FN7_7WC5X-34vXizM5VfTQxfnBhzwnaLmH9brUdizQIy0lqs7U_7m7iCVNiq-Lw.png',
+            conversionScore: {
+              overall: 94,
+              thumbStop: 95,
+              contrast: 93,
+              ctaClarity: 97,
+              brandAlignment: 94,
+              reasoning:
+                'Zero-risk "Free to join + Portfolio carries over after beta" offer maximizes sign-up conversion.'
+            }
+          }
+        ]
+      : [
+          {
+            id: 'variant-a',
+            angleName: 'Variant A: Pain-Point Hook',
+            angleBadge: '🔥 Pain-Point Angle',
+            badgeText: `${brandName.toUpperCase()} SPOTLIGHT`,
+            headline: cleanTopic.length <= 58 ? cleanTopic : `Stop Guessing. Start Winning With ${brandName}.`,
+            subheadline: brandTagline || `Eliminate blind spots with ${brandName}'s precision workflow.`,
+            ctaText: `Explore ${brandName} →`,
+            caption: `Still doing things the hard way?\n\n${cleanTopic}\n\nWith ${brandName}, you get:\n✅ ${brandTagline}\n✅ Built for real-world clarity and speed\n\n💬 Comment "${defaultKeyword}" and we'll DM you the direct link!\n\n${tagStr}`,
+            visualPrompt: `Dramatic split-lighting commercial photography representing "${cleanTopic}" for ${brandName}, sleek modern hardware and glass interface aesthetics, ultra-sharp 8k, no text.`,
+            firstCommentPlug: `🔗 Skip the wait — check out ${brandName} directly at ${cleanUrl}`,
+            dmTriggerKeyword: defaultKeyword,
+            dmAutoReplyScript: `Hey! Here is your direct access link to ${brandName}: ${cleanUrl} — reply here if you have any questions!`,
+            conversionScore: {
+              overall: 94,
+              thumbStop: 96,
+              contrast: 93,
+              ctaClarity: 94,
+              brandAlignment: 93,
+              reasoning: 'High thumb-stop power due to direct problem callout in the first 5 words.'
+            }
+          },
+          {
+            id: 'variant-b',
+            angleName: 'Variant B: Authority & Proof',
+            angleBadge: '📊 Authority Angle',
+            badgeText: 'EVIDENCE-FIRST SYSTEM',
+            headline: `Why Smart Builders & Pros Trust ${brandName}`,
+            subheadline: `${cleanTopic} — engineered for measurable outcomes and zero fluff.`,
+            ctaText: `See How It Works →`,
+            caption: `Data beats hype every single time.\n\nHere is why disciplined users are switching to ${brandName}:\n1️⃣ ${cleanTopic}\n2️⃣ ${brandTagline}\n3️⃣ 100% transparent tracking\n\n💬 Drop "${defaultKeyword}" in the comments for the full walkthrough!\n\n${tagStr}`,
+            visualPrompt: `Executive dark-mode analytics studio showcase for ${brandName} (${cleanTopic}), glowing emerald and sapphire data reflections on polished obsidian surface, 8k commercial photography, no text.`,
+            firstCommentPlug: `📊 Dive into the live ${brandName} platform here: ${cleanUrl}`,
+            dmTriggerKeyword: defaultKeyword,
+            dmAutoReplyScript: `Thanks for commenting "${defaultKeyword}"! Here's the full ${brandName} breakdown and live tool: ${cleanUrl}`,
+            conversionScore: {
+              overall: 91,
+              thumbStop: 89,
+              contrast: 94,
+              ctaClarity: 92,
+              brandAlignment: 95,
+              reasoning: 'Strongest brand authority alignment for skeptical, analytical buyers.'
+            }
+          },
+          {
+            id: 'variant-c',
+            angleName: 'Variant C: Direct Action / FOMO',
+            angleBadge: '⚡ Urgency Angle',
+            badgeText: 'NEW RELEASE LIVE',
+            headline: `Your Unfair Advantage Is Live on ${brandName}`,
+            subheadline: `Experience ${cleanTopic.toLowerCase()} in under 60 seconds.`,
+            ctaText: `Claim Free Access →`,
+            caption: `Don't get left behind using yesterday's playbook. ⚡\n\n${brandName} just made "${cleanTopic}" effortless.\n\n💬 Comment "${defaultKeyword}" right now and I'll send the direct link to your DMs!\n\n${tagStr}`,
+            visualPrompt: `High-energy futuristic product launch hero visual for ${brandName}, volumetric neon rim lighting, dynamic perspective, crisp luxury studio photography, no text.`,
+            firstCommentPlug: `🚀 Instant access to ${brandName} is live right now: ${cleanUrl}`,
+            dmTriggerKeyword: defaultKeyword,
+            dmAutoReplyScript: `You're in! ⚡ Here is your instant link to ${brandName}: ${cleanUrl}`,
+            conversionScore: {
+              overall: 92,
+              thumbStop: 94,
+              contrast: 91,
+              ctaClarity: 96,
+              brandAlignment: 89,
+              reasoning: 'Highest CTA click-through rate for fast-scrolling Instagram & X feeds.'
+            }
+          }
+        ];
 
     return NextResponse.json({
       success: true,

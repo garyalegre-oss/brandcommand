@@ -218,10 +218,17 @@ export function AdImageStudio({ brand, onSavePost, onUpdateBrand, onOpenSocialHu
 
   // Initialize defaults when brand changes
   useEffect(() => {
+    const isVarbona =
+      brand.id === 'brand-varbona' ||
+      brand.slug?.toLowerCase().includes('varbona') ||
+      brand.name.toLowerCase().includes('varbona');
+
     const defaultImg =
       brand.websiteMobileScreenshotUrl ||
       brand.websiteScreenshotUrl ||
-      (isLottery
+      (isVarbona
+        ? 'https://iad.microlink.io/AaPvcvMN7HITD6LobOa-aF_FN7_7WC5X-34vXizM5VfTQxfnBhzwnaLmH9brUdizQIy0lqs7U_7m7iCVNiq-Lw.png'
+        : isLottery
         ? 'https://iad.microlink.io/8cqABHIJQGemINk0-PISCSUTl2kEAw63vIjNXYJ6Kq0E8PYe94S1nj1VBftlbcGYfll3GD7WWGEnwaT90WNz-g.png'
         : 'https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=1200&auto=format&fit=crop&q=80');
 
@@ -229,7 +236,100 @@ export function AdImageStudio({ brand, onSavePost, onUpdateBrand, onOpenSocialHu
     setLogoUrl(brand.logoUrl || (isLottery ? 'https://evidraw.com/brand/evidraw-app-icon.svg' : ''));
     setPublishedLinks(null);
 
-    if (isLottery) {
+    const cleanSiteUrl = brand.websiteUrl || `https://${brand.slug || 'varbona'}.com`;
+    const defaultKw = brand.name.replace(/[^a-zA-Z]/g, '').slice(0, 6).toUpperCase() || 'VIP';
+    const tagList = (brand.commonHashtags || ['#Strategy', '#Growth', '#Innovation']).map((t) =>
+      t.startsWith('#') ? t : `#${t}`
+    );
+    setHashtags(tagList);
+
+    if (isVarbona) {
+      setCustomPrompt(
+        'Dynamic European football stadium under floodlights with glowing Pitch Lime #b9f566 player market share ticker, Lamine Yamal 125.00 CR (+4.2%) holographic card, and tactical 11-player pitch formation'
+      );
+      setBadgeText('⚽ FOOTBALL INSTINCT • MARKET INTELLIGENCE');
+      setHeadline('Scout Players. Trade Shares. Build Your XI.');
+      setSubheadline(
+        'Buy player shares with play-money credits on Varbona — 1 share unlocks any player for your Fantasy XI.'
+      );
+      setCtaText('Join Free Beta at Varbona.com →');
+      setCaption(
+        `Know the game? Play the market. ⚽📈\n\nOn Varbona, you don't just pick a static fantasy team and wait:\n✅ 01 / SCOUT: Spot breakout wonderkids like Lamine Yamal before their share price spikes\n✅ 02 / BUILD: 1 player share unlocks fantasy eligibility for your owned XI\n✅ 03 / COMPETE: Free Play-Money Beta — your portfolio & progress carry over!\n\n👉 Build your football portfolio free at ${cleanSiteUrl}\n\n${tagList.slice(0, 5).join(' ')}`
+      );
+      const varbonaVariants: AdVariantOption[] = [
+        {
+          id: 'varbona-var-a',
+          angleName: 'Option A: Old Fantasy vs. Varbona Market',
+          angleBadge: '🔥 Comparison Hook',
+          badgeText: '⚽ OLD FANTASY VS. VARBONA',
+          headline: 'Traditional Fantasy Locks You Out. Trade Player Shares Live.',
+          subheadline: 'Scout real football players with play-money credits — 1 share unlocks your owned Fantasy XI.',
+          ctaText: 'Join Free Varbona Beta →',
+          caption: `Why play static fantasy leagues when you can trade the live football market? ⚽📈\n\nOn Varbona, you scout breakout stars, trade player shares with play-money credits, and field the players you own.\n\n👉 Start free at ${cleanSiteUrl}`,
+          visualPrompt: 'Split screen football stadium vs glowing Pitch Lime #b9f566 player stock market chart and tactical pitch XI',
+          firstCommentPlug: `⚽ Join the free Varbona Play-Money Beta here (portfolio carries over!) 👉 ${cleanSiteUrl}`,
+          dmTriggerKeyword: 'SCOUT',
+          dmAutoReplyScript: `Hey! ⚽ Here is your direct invite to build your football portfolio on Varbona: ${cleanSiteUrl}`,
+          bgImageUrl: 'https://iad.microlink.io/ACYs_juUhBXUJ9l5A9catynz8EitEHRayqN4IZOuUK_wLQUGKoh_hLCLE0dbzw-h3nC4xF1IVUWYbYSuXCj7Jg.png',
+          conversionScore: {
+            overall: 96,
+            thumbStop: 97,
+            contrast: 95,
+            ctaClarity: 96,
+            brandAlignment: 97,
+            reasoning: 'Directly contrasts static FPL frustration against Varbona’s live player share trading.'
+          }
+        },
+        {
+          id: 'varbona-var-b',
+          angleName: 'Option B: Wonderkid Scouting & Share Price Proof',
+          angleBadge: '📈 Market Proof Angle',
+          badgeText: '📈 LAMINE YAMAL • 125.00 CR (+4.2%)',
+          headline: 'Back Your Football Instincts Before Matchday.',
+          subheadline: 'Spot undervalued wonderkids early, watch their share value climb, and dominate the pitch.',
+          ctaText: 'Scout Players on Varbona →',
+          caption: `You called that breakout winger 3 weeks before the pundits did. Now prove it on the market. ⚽📊\n\nScout real players, trade play-money shares, and build your owned XI on Varbona.\n\n👉 ${cleanSiteUrl}`,
+          visualPrompt: 'Holographic football player scouting card showing +4.2% share price sparkline over dark stadium turf',
+          firstCommentPlug: `📊 Browse the live Varbona Player Market here 👉 ${cleanSiteUrl}/players`,
+          dmTriggerKeyword: 'XI',
+          dmAutoReplyScript: `Ready to scout? Here is the live Varbona Player Market: ${cleanSiteUrl}/players`,
+          bgImageUrl: 'https://iad.microlink.io/bRkUPVWQyVPJJwGvlkZlpasMcW-r7YNaGlIJsdyB8_HHbz9fnRweBDa2ykbfWTqu5Xe8tf3VyeghO2ES-OcWPQ.png',
+          conversionScore: {
+            overall: 95,
+            thumbStop: 96,
+            contrast: 94,
+            ctaClarity: 95,
+            brandAlignment: 96,
+            reasoning: 'Leads with concrete player market numbers (125.00 CR +4.2%) that immediately hook football fans.'
+          }
+        },
+        {
+          id: 'varbona-var-c',
+          angleName: 'Option C: Free Play-Money Beta Offer',
+          angleBadge: '⚡ Early Access Beta',
+          badgeText: '⚡ FREE PLAY-MONEY BETA • PROGRESS CARRIES OVER',
+          headline: 'Build Your First Football Portfolio Free.',
+          subheadline: '01 Scout • 02 Build Your Owned XI • 03 Compete. Zero purchase required.',
+          ctaText: 'Claim Your Free Squad →',
+          caption: `The Varbona Play-Money Beta is live! ⚽🔥\n\n✅ Free to join (no deposit required)\n✅ Trade real football player shares\n✅ Your portfolio & progress carry over after beta!\n\n👉 Claim your display name & squad at ${cleanSiteUrl}`,
+          visualPrompt: 'Sleek dark stadium tunnel with glowing neon lime football pitch formation and beta access badge',
+          firstCommentPlug: `🚀 Lock in your Varbona Beta account (progress carries over!) 👉 ${cleanSiteUrl}`,
+          dmTriggerKeyword: 'BETA',
+          dmAutoReplyScript: `You're in! ⚡ Create your free Varbona Beta portfolio here: ${cleanSiteUrl}`,
+          bgImageUrl: 'https://iad.microlink.io/AaPvcvMN7HITD6LobOa-aF_FN7_7WC5X-34vXizM5VfTQxfnBhzwnaLmH9brUdizQIy0lqs7U_7m7iCVNiq-Lw.png',
+          conversionScore: {
+            overall: 94,
+            thumbStop: 95,
+            contrast: 93,
+            ctaClarity: 97,
+            brandAlignment: 94,
+            reasoning: 'Zero-risk "Free to join + Portfolio carries over after beta" offer maximizes sign-up conversion.'
+          }
+        }
+      ];
+      setAbVariants(varbonaVariants);
+      setActiveVariantId(varbonaVariants[0].id);
+    } else if (isLottery) {
       setCustomPrompt(
         'Split screen: crumpled paper lottery ticket on the left vs sleek, organized Evidraw portfolio grid and probability matrix on the right'
       );
@@ -240,6 +340,7 @@ export function AdImageStudio({ brand, onSavePost, onUpdateBrand, onOpenSocialHu
       setCaption(
         `Most players pick clusters of birthdays or random quick-picks that overlap heavily.\n\nWith ${brand.name}, you can visualize combinatorial spread, eliminate duplicate risk, and verify every draw against historical frequencies.\n\n👉 Build your structured portfolio today at ${brand.websiteUrl || 'https://evidraw.com'}`
       );
+      setAbVariants([]);
     } else if (brand.category === 'fintech') {
       setCustomPrompt(
         `Sleek dark-mode institutional trading terminal for ${brand.name} showing real-time options flow and volatility heatmaps`
@@ -251,6 +352,7 @@ export function AdImageStudio({ brand, onSavePost, onUpdateBrand, onOpenSocialHu
       setCaption(
         `Stop guessing direction without seeing institutional flow.\n\n${brand.name} gives you real-time depth, gamma exposure, and high-conviction execution alerts.\n\n🔗 Link in bio to access the terminal.`
       );
+      setAbVariants([]);
     } else {
       const firstTopic = brand.suggestedTopics?.[0] || brand.tagline;
       setCustomPrompt(`High-converting commercial advertisement for ${brand.name}: ${firstTopic}`);
@@ -261,23 +363,34 @@ export function AdImageStudio({ brand, onSavePost, onUpdateBrand, onOpenSocialHu
       setCaption(
         `${brand.tagline}\n\nDiscover how ${brand.name} helps you get better results with zero friction.\n\n👉 Visit ${brand.websiteUrl || 'our link in bio'} to get started!`
       );
+      setAbVariants([]);
     }
 
-    setHashtags(
-      (brand.commonHashtags || ['#Strategy', '#Growth', '#Innovation']).map((t) =>
-        t.startsWith('#') ? t : `#${t}`
-      )
-    );
-
-    const cleanSiteUrl = brand.websiteUrl || `https://${brand.slug || 'evidraw'}.com`;
-    const defaultKw = brand.name.replace(/[^a-zA-Z]/g, '').slice(0, 6).toUpperCase() || 'VIP';
     setFirstCommentPlug(`⚡ Explore ${brand.name} directly here (no signup friction) 👉 ${cleanSiteUrl}`);
     setDmTriggerKeyword(defaultKw);
     setDmAutoReplyScript(
       `Hey! 👋 Thanks for commenting "${defaultKw}". Here is your direct access link to ${brand.name}: ${cleanSiteUrl} — let me know what you think!`
     );
-    setAbVariants([]);
     setSpyAnalysis(null);
+
+    // Check if ModelStudio passed a specific Image Ad option to customize
+    try {
+      const pendingRaw = localStorage.getItem('brandcommand_pending_ad_option');
+      if (pendingRaw) {
+        const pending = JSON.parse(pendingRaw);
+        localStorage.removeItem('brandcommand_pending_ad_option');
+        if (pending && (!pending.brandId || pending.brandId === brand.id)) {
+          if (pending.badgeText) setBadgeText(pending.badgeText);
+          if (pending.headline) setHeadline(pending.headline);
+          if (pending.subheadline) setSubheadline(pending.subheadline);
+          if (pending.ctaText) setCtaText(pending.ctaText);
+          if (pending.caption) setCaption(pending.caption);
+          if (pending.bgImageUrl) setActiveImageUrl(pending.bgImageUrl);
+          if (pending.presetId) setSelectedPresetId(pending.presetId);
+          setStatusNotice(`✨ Loaded "${pending.angleName || pending.headline}" from Model Studio onto the canvas!`);
+        }
+      }
+    } catch {}
   }, [brand, isLottery]);
 
   // Apply a selected A/B Variant or Spy Remix to the active studio canvas

@@ -81,6 +81,13 @@ export default function Home() {
               return official ? { ...b, ...official } : b;
             }
           }
+          if (b.id === 'brand-varbona' || b.websiteUrl?.includes('varbona.com')) {
+            if (!b.websiteMobileScreenshotUrl || !b.brandAssets || b.brandAssets.length === 0) {
+              upgraded = true;
+              const officialVarbona = DEFAULT_BRANDS.find((d) => d.id === 'brand-varbona');
+              return officialVarbona ? { ...b, ...officialVarbona } : b;
+            }
+          }
           return b;
         });
 
@@ -93,7 +100,21 @@ export default function Home() {
       }
       const savedPosts = localStorage.getItem('brandcommand_posts');
       if (savedPosts) {
-        setPosts(JSON.parse(savedPosts));
+        let parsedPosts: Post[] = JSON.parse(savedPosts);
+        // Clean up any legacy generic "manual notes aren't evidence" posts generated for non-Evidraw brands
+        const cleanedPosts = parsedPosts.filter(
+          (p) =>
+            !(
+              p.brandId !== 'brand-evidraw' &&
+              p.videoScript?.ugcStoryText?.includes("manual notes aren't evidence")
+            )
+        );
+        setPosts(cleanedPosts);
+        if (cleanedPosts.length !== parsedPosts.length) {
+          try {
+            localStorage.setItem('brandcommand_posts', JSON.stringify(cleanedPosts));
+          } catch {}
+        }
       }
       const savedContacts = localStorage.getItem('brandcommand_contacts');
       if (savedContacts) {
@@ -886,12 +907,15 @@ export default function Home() {
           {activeTab === 'model_studio' && (
             <ModelStudio
               brand={activeBrand}
+              allBrands={brands}
               posts={posts}
               onSaveBatchPosts={handleSaveBatchPosts}
               onUpdatePost={handleUpdatePost}
               onUpdateBrand={handleUpdateBrand}
+              onSelectBrand={handleSelectBrand}
               onOpenLibrary={() => setActiveTab('library')}
               onOpenInsideAppBot={() => setActiveTab('inside_bot')}
+              onOpenAdStudio={() => setActiveTab('ad_studio')}
             />
           )}
 
