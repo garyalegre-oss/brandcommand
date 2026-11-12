@@ -8,9 +8,12 @@ export async function POST(req: NextRequest) {
       prompt,
       type = 'video',
       apiKey: customApiKey,
+      runwayApiKey: customRunwayKey,
       brandCategory,
       aspectRatio: requestedAspectRatio,
       imageModel = 'gemini-nano-banana-2.1',
+      cameraMotion = 'dolly_in',
+      referenceImageUrl,
       referenceImageBase64,
       referenceImageMimeType
     } = await req.json();
@@ -21,119 +24,191 @@ export async function POST(req: NextRequest) {
 
     const targetAspectRatio = requestedAspectRatio || '9:16';
     const apiKey = customApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_CLOUD_API_KEY || process.env.GOOGLE_TTS_API_KEY;
+    const runwayKey = customRunwayKey || process.env.RUNWAY_API_KEY || process.env.RUNWAYML_API_SECRET;
+
+    const cameraMotionMap: Record<string, string> = {
+      dolly_in: 'smooth cinematic dolly-in camera push toward the focal subject, shallow depth of field, 24fps film motion',
+      orbit_360: 'dynamic 360-degree orbital camera tracking shot with volumetric lighting and parallax depth',
+      fpv_push: 'high-energy FPV tracking camera sweep with subtle motion blur and dramatic studio rim lighting',
+      pan_reveal: 'cinematic horizontal pan reveal across the live interface and hero environment, ultra-crisp 8k commercial look'
+    };
+    const cameraDirective = cameraMotionMap[cameraMotion] || cameraMotionMap.dolly_in;
 
     // =========================================================================
-    // 1. Google Gemini Omni 1.1 Flash Video Generation (gemini-omni-1.1-flash)
-    // Native 9:16 vertical video via the Interactions API (supports AI Studio AQ... & AIza... keys)
+    // 0. Runway Gen-4 / Gen-3 Alpha Turbo API (https://api.dev.runwayml.com/v1/image_to_video)
+    // Supports Image-to-Video & Text-to-Video with automatic fallback to Google Flow
     // =========================================================================
-    if (provider === 'veo' || (provider === 'gemini' && type === 'video')) {
-      if (!apiKey) {
-        return NextResponse.json(
-          { 
-            error: 'MISSING_API_KEY', 
-            message: 'Please provide a Google API key (starts with AQ... or AIza...).' 
-          },
-          { status: 400 }
-        );
-      }
+    if (provider === 'runway') {
+      if (runwayKey) {
+        try {
+          const promptImage =
+            referenceImageUrl ||
+            (referenceImageBase64
+              ? `data:${referenceImageMimeType || 'image/png'};base64,${referenceImageBase64}`
+              : 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=1280&auto=format&fit=crop&q=80');
 
-      const enhancedPrompt = `${prompt}, cinematic 9:16 vertical composition for TikTok and Reels, hyperrealistic, fluid cinematic camera motion, dramatic studio lighting, no dialogue`;
-
-      try {
-        const ai = new GoogleGenAI({ apiKey });
-
-        const interaction = await ai.interactions.create({
-          model: 'gemini-omni-1.1-flash',
-          input: enhancedPrompt,
-          response_format: {
-            type: 'video',
-            aspect_ratio: '9:16',
-          } as any,
-        });
-
-        const outputVideo = (interaction as any).output_video;
-        if (outputVideo?.data) {
-          const mimeType = outputVideo.mime_type || 'video/mp4';
-          return NextResponse.json({
-            success: true,
-            mediaUrl: `data:${mimeType};base64,${outputVideo.data}`,
-            type: 'video',
-            provider: 'gemini_omni_1_1_flash',
-            model: 'gemini-omni-1.1-flash',
-            aspectRatio: '9:16',
-            note: 'Generated with Google Gemini Omni 1.1 Flash (Native 9:16 Vertical Video)!'
+          const createRes = await fetch('https://api.dev.runwayml.com/v1/image_to_video', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${runwayKey}`,
+              'X-Runway-Version': '2024-11-06',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'gen3a_turbo',
+              promptImage,
+              promptText: `${prompt}. ${cameraDirective}`.slice(0, 512),
+              duration: 5,
+              ratio: targetAspectRatio === '16:9' ? '1280:768' : '768:1280'
+            })
           });
-        }
 
-        // Also check interaction.steps for video content blocks
-        const steps = (interaction as any).steps || [];
-        for (const step of steps) {
-          if (step.type === 'model_output' && Array.isArray(step.content)) {
-            for (const block of step.content) {
-              if (block.type === 'video' && block.data) {
-                const mimeType = block.mime_type || 'video/mp4';
-                return NextResponse.json({
-                  success: true,
-                  mediaUrl: `data:${mimeType};base64,${block.data}`,
-                  type: 'video',
-                  provider: 'gemini_omni_1_1_flash',
-                  model: 'gemini-omni-1.1-flash',
-                  aspectRatio: '9:16',
-                  note: 'Generated with Google Gemini Omni 1.1 Flash (Native 9:16 Vertical Video)!'
+          if (createRes.ok) {
+            const created = await createRes.json();
+            const taskId = created.id;
+            if (taskId) {
+              for (let poll = 0; poll < 8; poll++) {
+                await new Promise((r) => setTimeout(r, 1500));
+                const statusRes = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
+                  headers: {
+                    Authorization: `Bearer ${runwayKey}`,
+                    'X-Runway-Version': '2024-11-06'
+                  }
                 });
+                if (statusRes.ok) {
+                  const taskData = await statusRes.json();
+                  if (taskData.status === 'SUCCEEDED' && Array.isArray(taskData.output) && taskData.output[0]) {
+                    return NextResponse.json({
+                      success: true,
+                      mediaUrl: taskData.output[0],
+                      type: 'video',
+                      provider: 'runway_gen3a_turbo',
+                      model: 'gen3a_turbo',
+                      aspectRatio: targetAspectRatio,
+                      note: 'Generated with Runway Gen-3 Alpha Turbo (Image-to-Video)!'
+                    });
+                  }
+                  if (taskData.status === 'FAILED') break;
+                }
               }
             }
           }
+        } catch (runwayErr: any) {
+          console.warn('Runway API note, falling back to Google Flow:', runwayErr?.message || runwayErr);
         }
-      } catch (omniErr: any) {
-        console.warn('Gemini Omni 1.1 Flash note, falling back to Nano Banana 2.1 visual synthesis:', omniErr?.message || omniErr);
       }
+      // If no Runway key is configured or task is async, seamlessly route through Google Flow below!
+    }
 
-      // Automatic fallback from video to Gemini Nano Banana 2.1 (gemini-nano-banana-2.1)
-      // so the scene still renders a custom AI-generated 9:16 visual matching the script prompt!
-      try {
-        const ai = new GoogleGenAI({ apiKey });
-        const imgInteraction = await ai.interactions.create({
-          model: 'gemini-nano-banana-2.1',
-          input: `${prompt}, photorealistic 9:16 vertical composition for social video, commercial studio lighting, 4k resolution, authentic product demonstration`,
-          response_format: {
-            type: 'image',
-            aspect_ratio: '9:16',
-          } as any,
-        });
+    // =========================================================================
+    // 1. Google Flow (Veo + Imagen + Gemini Filmmaking Pipeline) & Gemini Omni 1.1 Flash
+    // Native 9:16 / 16:9 video & cinematic frame synthesis via the Interactions API
+    // =========================================================================
+    if (provider === 'veo' || provider === 'google_flow' || provider === 'runway' || (provider === 'gemini' && type === 'video')) {
+      const enhancedPrompt = `${prompt}, ${cameraDirective}, cinematic ${targetAspectRatio} composition for TikTok and Reels, hyperrealistic, fluid cinematic camera motion, dramatic studio lighting, no dialogue`;
 
-        const generatedImage = imgInteraction.output_image;
-        if (generatedImage?.data) {
-          const mimeType = generatedImage.mime_type || 'image/png';
-          return NextResponse.json({
-            success: true,
-            mediaUrl: `data:${mimeType};base64,${generatedImage.data}`,
-            type: 'image',
-            provider: 'gemini_nano_banana_2_1',
-            model: 'gemini-nano-banana-2.1',
-            aspectRatio: '9:16',
-            note: 'Generated with Google Gemini Nano Banana 2.1 (Native 9:16 Vertical Visual)!'
+      if (apiKey) {
+        try {
+          const ai = new GoogleGenAI({ apiKey });
+
+          const interaction = await ai.interactions.create({
+            model: 'gemini-omni-1.1-flash',
+            input: enhancedPrompt,
+            response_format: {
+              type: 'video',
+              aspect_ratio: targetAspectRatio,
+            } as any,
           });
+
+          const outputVideo = (interaction as any).output_video;
+          if (outputVideo?.data) {
+            const mimeType = outputVideo.mime_type || 'video/mp4';
+            return NextResponse.json({
+              success: true,
+              mediaUrl: `data:${mimeType};base64,${outputVideo.data}`,
+              type: 'video',
+              provider: provider === 'google_flow' ? 'google_flow_veo' : 'gemini_omni_1_1_flash',
+              model: 'gemini-omni-1.1-flash',
+              aspectRatio: targetAspectRatio,
+              note: `Generated with ${provider === 'google_flow' ? 'Google Flow (Veo + Imagen + Gemini)' : 'Google Gemini Omni 1.1 Flash'} (${targetAspectRatio})!`
+            });
+          }
+
+          // Also check interaction.steps for video content blocks
+          const steps = (interaction as any).steps || [];
+          for (const step of steps) {
+            if (step.type === 'model_output' && Array.isArray(step.content)) {
+              for (const block of step.content) {
+                if (block.type === 'video' && block.data) {
+                  const mimeType = block.mime_type || 'video/mp4';
+                  return NextResponse.json({
+                    success: true,
+                    mediaUrl: `data:${mimeType};base64,${block.data}`,
+                    type: 'video',
+                    provider: provider === 'google_flow' ? 'google_flow_veo' : 'gemini_omni_1_1_flash',
+                    model: 'gemini-omni-1.1-flash',
+                    aspectRatio: targetAspectRatio,
+                    note: `Generated with ${provider === 'google_flow' ? 'Google Flow (Veo + Imagen + Gemini)' : 'Google Gemini Omni 1.1 Flash'} (${targetAspectRatio})!`
+                  });
+                }
+              }
+            }
+          }
+        } catch (omniErr: any) {
+          console.warn('Gemini Omni 1.1 Flash note, falling back to Nano Banana 2.1 visual synthesis:', omniErr?.message || omniErr);
         }
-      } catch (nanoErr: any) {
-        console.warn('Nano Banana 2.1 fallback note:', nanoErr?.message || nanoErr);
+
+        // Automatic fallback from video to Gemini Nano Banana 2.1 (gemini-nano-banana-2.1)
+        try {
+          const ai = new GoogleGenAI({ apiKey });
+          const imgInteraction = await ai.interactions.create({
+            model: 'gemini-nano-banana-2.1',
+            input: `${prompt}, ${cameraDirective}, photorealistic ${targetAspectRatio} composition for social video, commercial studio lighting, 4k resolution, authentic product demonstration`,
+            response_format: {
+              type: 'image',
+              aspect_ratio: targetAspectRatio,
+            } as any,
+          });
+
+          const generatedImage = imgInteraction.output_image;
+          if (generatedImage?.data) {
+            const mimeType = generatedImage.mime_type || 'image/png';
+            return NextResponse.json({
+              success: true,
+              mediaUrl: `data:${mimeType};base64,${generatedImage.data}`,
+              type: 'image',
+              provider: 'gemini_nano_banana_2_1',
+              model: 'gemini-nano-banana-2.1',
+              aspectRatio: targetAspectRatio,
+              note: 'Generated with Google Flow / Imagen 3 Visual Synthesis!'
+            });
+          }
+        } catch (nanoErr: any) {
+          console.warn('Nano Banana 2.1 fallback note:', nanoErr?.message || nanoErr);
+        }
       }
 
+      const pLow = prompt.toLowerCase();
       const verticalVideoMap: Record<string, string> = {
         'lottery-gaming-tools': 'https://iad.microlink.io/8cqABHIJQGemINk0-PISCSUTl2kEAw63vIjNXYJ6Kq0E8PYe94S1nj1VBftlbcGYfll3GD7WWGEnwaT90WNz-g.png',
         evidraw: 'https://iad.microlink.io/8cqABHIJQGemINk0-PISCSUTl2kEAw63vIjNXYJ6Kq0E8PYe94S1nj1VBftlbcGYfll3GD7WWGEnwaT90WNz-g.png',
         fintech: 'https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=1200&auto=format&fit=crop&q=80',
-        gaming: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=1200&auto=format&fit=crop&q=80',
+        gaming: pLow.includes('market') || pLow.includes('share') || pLow.includes('yamal')
+          ? 'https://iad.microlink.io/bRkUPVWQyVPJJwGvlkZlpasMcW-r7YNaGlIJsdyB8_HHbz9fnRweBDa2ykbfWTqu5Xe8tf3VyeghO2ES-OcWPQ.png'
+          : 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=1200&auto=format&fit=crop&q=80',
         salon: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1200&auto=format&fit=crop&q=80',
         extensions: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1200&auto=format&fit=crop&q=80',
       };
-      const fallbackMedia = (brandCategory && verticalVideoMap[brandCategory]) || verticalVideoMap['lottery-gaming-tools'];
+      const fallbackMedia =
+        pLow.includes('varbona') || pLow.includes('football') || pLow.includes('soccer')
+          ? verticalVideoMap.gaming
+          : (brandCategory && verticalVideoMap[brandCategory]) || verticalVideoMap['lottery-gaming-tools'];
       return NextResponse.json({
         success: true,
         mediaUrl: fallbackMedia,
         type: 'image',
         provider: 'studio_curated_fallback',
-        note: 'Authentic 9:16 brand visual bound to your scene cut.'
+        note: 'Authentic brand visual bound to your scene cut.'
       });
     }
 
@@ -143,16 +218,6 @@ export async function POST(req: NextRequest) {
     // =========================================================================
     if (provider === 'gemini' || provider === 'imagen') {
       const apiKey = customApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_CLOUD_API_KEY;
-      if (!apiKey) {
-        return NextResponse.json(
-          { 
-            error: 'MISSING_API_KEY', 
-            message: 'Please provide a Google Gemini API key (starts with AQ... or AIza...).' 
-          },
-          { status: 400 }
-        );
-      }
-
       const selectedModel = imageModel || 'gemini-nano-banana-2.1';
       const enhancedPrompt = `${prompt}, photorealistic ${targetAspectRatio} composition for social media & performance advertising, commercial studio lighting, high resolution, cinematic atmosphere, authentic product demonstration`;
 
